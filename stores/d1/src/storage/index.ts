@@ -1,4 +1,4 @@
-import type { StorageThreadType, MessageType, MemoryConfig } from '@mastra/core/memory';
+import type { StorageThreadType, MessageType } from '@mastra/core/memory';
 import {
   MastraStorage,
   TABLE_MESSAGES,
@@ -19,21 +19,37 @@ export interface D1Config {
   tablePrefix?: string;
 }
 
+export interface D1WorkersConfig {
+  binding: any; // D1Database binding from Workers
+  tablePrefix?: string;
+}
+
+export type D1StoreConfig = D1Config | D1WorkersConfig;
+
 export class D1Store extends MastraStorage {
-  private client: Cloudflare;
-  private accountId: string;
-  private databaseId: string;
+  private client?: Cloudflare;
+  private accountId?: string;
+  private databaseId?: string;
+  private binding?: any; // D1Database binding
   private tablePrefix: string;
+  private useWorkersBinding: boolean;
 
-  constructor(config: D1Config) {
+  constructor(config: D1StoreConfig) {
     super({ name: 'D1' });
-    this.accountId = config.accountId;
-    this.databaseId = config.databaseId;
-    this.tablePrefix = config.tablePrefix || '';
 
-    this.client = new Cloudflare({
-      apiToken: config.apiToken,
-    });
+    this.tablePrefix = config.tablePrefix || '';
+    // Determine which API to use based on provided config
+    if ('binding' in config) {
+      this.binding = config.binding;
+      this.useWorkersBinding = true;
+    } else {
+      this.accountId = config.accountId;
+      this.databaseId = config.databaseId;
+      this.client = new Cloudflare({
+        apiToken: config.apiToken,
+      });
+      this.useWorkersBinding = false;
+    }
   }
 
   // Helper method to get the full table name with prefix
@@ -41,45 +57,78 @@ export class D1Store extends MastraStorage {
     return `${this.tablePrefix}${tableName}`;
   }
 
-  // Execute a D1 query
-  private async executeQuery(query: string, params: any[] = []): Promise<any> {
+  // Helper method to create SQL indexes for better query performance
+  private async createIndexIfNotExists(
+    tableName: TABLE_NAMES,
+    columnName: string,
+    indexType: string = '',
+  ): Promise<void> {
+    const fullTableName = this.getTableName(tableName);
+    const indexName = `idx_${tableName}_${columnName}`;
+
     try {
-      this.logger.debug('Executing D1 query', { query, params });
+      // Check if index exists
+      const checkIndexQuery = `
+        SELECT name FROM sqlite_master 
+        WHERE type='index' AND name=? AND tbl_name=?
+      `;
+      const indexExists = await this.executeQueryFirst(checkIndexQuery, [indexName, fullTableName]);
 
-      const response = await this.client.d1.database.query(this.databaseId, {
-        account_id: this.accountId,
-        sql: query,
-        params,
-      });
-
-      // Check if we have a response
-      if (!response) {
-        this.logger.error('D1 query failed - no response', { query, params });
-        throw new Error('D1 query failed - no response received');
-      }
-
-      // For SELECT queries, response.result will be an array of rows
-      // For other queries (INSERT, UPDATE, DELETE), we'll check if result exists
-      if (Array.isArray(response.result)) {
-        return response.result;
-      } else if (query.trim().toUpperCase().startsWith('SELECT')) {
-        // If it's a SELECT query but no results, return empty array
-        return [];
-      } else {
-        // For non-SELECT queries, return the result (which might be empty for operations like DELETE)
-        return response.result || { affected: 0 };
+      if (!indexExists) {
+        // Create the index if it doesn't exist
+        const createIndexQuery = `CREATE ${indexType} INDEX IF NOT EXISTS ${indexName} ON ${fullTableName}(${columnName})`;
+        await this.executeQuery(createIndexQuery);
+        this.logger.debug(`Created index ${indexName} on ${fullTableName}(${columnName})`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      this.logger.error('Error executing D1 query:', { query, params, error });
-      throw new Error(`D1 query execution failed: ${errorMessage}`);
+      this.logger.error(`Error creating index on ${fullTableName}(${columnName}):`, { error });
+      // Non-fatal error, continue execution
+    }
+  }
+
+  // Execute a D1 query
+  private async executeQuery(sql: string, params: any[] = []): Promise<any[]> {
+    try {
+      this.logger.debug('Executing SQL query', { sql, params });
+
+      let results: any[];
+
+      if (this.useWorkersBinding && this.binding) {
+        // Use Workers Binding API
+        const statement = this.binding.prepare(sql);
+
+        // Bind parameters if any
+        if (params.length > 0) {
+          const result = await statement.bind(...params).all();
+          results = result.results;
+        } else {
+          const result = await statement.all();
+          results = result.results;
+        }
+      } else if (this.client && this.accountId && this.databaseId) {
+        // Use REST API
+        const response = await this.client.d1.database.query(this.databaseId, {
+          account_id: this.accountId,
+          sql: sql,
+          params: params,
+        });
+
+        results = response.result;
+      } else {
+        throw new Error('No valid D1 configuration provided');
+      }
+
+      return results || [];
+    } catch (error: any) {
+      this.logger.error('Error executing SQL query', { error, sql, params });
+      throw new Error(`D1 query error: ${error.message}`);
     }
   }
 
   // Execute a D1 query and return the first result
-  private async executeQueryFirst(query: string, params: any[] = []): Promise<any> {
+  private async executeQueryFirst(sql: string, params: any[] = []): Promise<any> {
     try {
-      const result = await this.executeQuery(query, params);
+      const result = await this.executeQuery(sql, params);
 
       // Check if the result is an array (for SELECT queries)
       if (Array.isArray(result)) {
@@ -89,7 +138,7 @@ export class D1Store extends MastraStorage {
       // For non-SELECT queries, just return the result
       return result;
     } catch (error) {
-      this.logger.error('Error executing D1 query first:', { query, params, error });
+      this.logger.error('Error executing D1 query first:', { error, sql, params });
       throw error; // Re-throw to be handled by the caller
     }
   }
@@ -112,7 +161,6 @@ export class D1Store extends MastraStorage {
     }
   }
 
-  // Helper methods for date handling and serialization
   private ensureDate(date: Date | string | undefined): Date | undefined {
     if (!date) return undefined;
     return date instanceof Date ? date : new Date(date);
@@ -276,8 +324,8 @@ export class D1Store extends MastraStorage {
     try {
       return {
         ...thread,
-        createdAt: this.ensureDate(thread.createdAt)!,
-        updatedAt: this.ensureDate(thread.updatedAt)!,
+        createdAt: this.ensureDate(thread.createdAt) as Date,
+        updatedAt: this.ensureDate(thread.updatedAt) as Date,
         metadata:
           typeof thread.metadata === 'string'
             ? (JSON.parse(thread.metadata || '{}') as Record<string, any>)
@@ -298,8 +346,8 @@ export class D1Store extends MastraStorage {
 
       return results.map((thread: any) => ({
         ...thread,
-        createdAt: this.ensureDate(thread.createdAt)!,
-        updatedAt: this.ensureDate(thread.updatedAt)!,
+        createdAt: this.ensureDate(thread.createdAt) as Date,
+        updatedAt: this.ensureDate(thread.updatedAt) as Date,
         metadata:
           typeof thread.metadata === 'string'
             ? (JSON.parse(thread.metadata || '{}') as Record<string, any>)
@@ -376,17 +424,82 @@ export class D1Store extends MastraStorage {
     if (messages.length === 0) return [];
 
     try {
-      // Save each message individually
+      const now = new Date();
+      const fullTableName = this.getTableName(TABLE_MESSAGES);
+
+      // Group messages by thread for better organization
+      const messagesByThread = new Map<string, MessageType[]>();
+
+      // Process and save each message
       for (const message of messages) {
+        // Ensure timestamps are set
+        const messageToSave = {
+          ...message,
+          thread_id: message.threadId,
+          createdAt: message.createdAt || now,
+          updatedAt: now,
+        };
+
+        // Group by thread for later processing
+        if (!messagesByThread.has(message.threadId)) {
+          messagesByThread.set(message.threadId, []);
+        }
+        messagesByThread.get(message.threadId)!.push(messageToSave);
+
+        // Save the message to the database
         await this.insert({
           tableName: TABLE_MESSAGES,
-          record: {
-            ...message,
-            thread_id: message.threadId,
-          } as Record<string, any>,
+          record: messageToSave as Record<string, any>,
         });
       }
 
+      // Update thread metadata to reflect the latest message
+      await Promise.all(
+        Array.from(messagesByThread.entries()).map(async ([threadId, threadMessages]) => {
+          try {
+            // Get the thread to update its metadata
+            const thread = await this.getThreadById({ threadId });
+            if (thread) {
+              // Find the latest message in this batch
+              if (threadMessages.length > 0) {
+                // Sort messages by creation time and get the latest one
+                const sortedMessages = [...threadMessages].sort((a, b) => {
+                  const timeA = new Date(a.createdAt || 0).getTime();
+                  const timeB = new Date(b.createdAt || 0).getTime();
+                  return timeB - timeA; // Descending order (newest first)
+                });
+
+                const latestMessage = sortedMessages[0]; // This is safer than using reduce
+
+                // Ensure latestMessage is defined before proceeding
+                if (latestMessage) {
+                  // Ensure we have valid values for the thread metadata
+                  const createdAt = latestMessage.createdAt || new Date().toISOString();
+                  const messageId = latestMessage.id || '';
+
+                  if (messageId) {
+                    // Update thread with latest message info
+                    await this.updateThread({
+                      id: threadId,
+                      title: thread.title || '', // Ensure title is never undefined
+                      metadata: {
+                        ...(thread.metadata as Record<string, unknown>),
+                        lastMessageAt: createdAt,
+                        lastMessageId: messageId,
+                        messageCount: ((thread.metadata as any)?.messageCount || 0) + threadMessages.length,
+                      },
+                    });
+                  }
+                }
+              }
+            }
+          } catch (error) {
+            this.logger.error(`Error updating thread ${threadId} metadata:`, { error });
+          }
+        }),
+      );
+
+      this.logger.debug(`Saved ${messages.length} messages across ${messagesByThread.size} threads`);
       return messages;
     } catch (error) {
       this.logger.error('Error saving messages:', { error });
@@ -405,25 +518,113 @@ export class D1Store extends MastraStorage {
     }
 
     try {
-      let sql = `SELECT * FROM ${fullTableName} WHERE thread_id = ?`;
-      const params: any[] = [threadId];
+      // We'll collect all message IDs we need to fetch
+      const messageIdsToFetch = new Set<string>();
 
-      // Handle specifically included messages
+      // Handle specifically included messages and their context
       if (selectBy?.include?.length) {
-        const messageIds = selectBy.include.map(item => item.id);
-        sql += ` AND id IN (${messageIds.map(() => '?').join(',')})`;
-        params.push(...messageIds);
+        this.logger.debug('Including specific messages with context', { include: selectBy.include });
+
+        for (const item of selectBy.include) {
+          messageIdsToFetch.add(item.id);
+
+          // If we need context (previous/next messages)
+          if (item.withPreviousMessages || item.withNextMessages) {
+            // First, get the current message's position (using created_at as the ordering)
+            const positionQuery = `
+              SELECT created_at FROM ${fullTableName} 
+              WHERE thread_id = ? AND id = ? 
+              LIMIT 1
+            `;
+            const positionResult = await this.executeQueryFirst(positionQuery, [threadId, item.id]);
+
+            if (positionResult) {
+              const messageTimestamp = positionResult.created_at;
+
+              // Get previous messages if requested
+              if (item.withPreviousMessages && item.withPreviousMessages > 0) {
+                const prevQuery = `
+                  SELECT id FROM ${fullTableName} 
+                  WHERE thread_id = ? AND created_at < ? 
+                  ORDER BY created_at DESC 
+                  LIMIT ?
+                `;
+                const prevResults = await this.executeQuery(prevQuery, [
+                  threadId,
+                  messageTimestamp,
+                  item.withPreviousMessages,
+                ]);
+
+                for (const row of prevResults) {
+                  messageIdsToFetch.add(row.id);
+                }
+              }
+
+              // Get next messages if requested
+              if (item.withNextMessages && item.withNextMessages > 0) {
+                const nextQuery = `
+                  SELECT id FROM ${fullTableName} 
+                  WHERE thread_id = ? AND created_at > ? 
+                  ORDER BY created_at ASC 
+                  LIMIT ?
+                `;
+                const nextResults = await this.executeQuery(nextQuery, [
+                  threadId,
+                  messageTimestamp,
+                  item.withNextMessages,
+                ]);
+
+                for (const row of nextResults) {
+                  messageIdsToFetch.add(row.id);
+                }
+              }
+            }
+          }
+        }
       }
 
-      // Order by creation time and limit
-      sql += ` ORDER BY createdAt ASC`;
-
+      // If we need the most recent messages
       if (limit > 0) {
-        sql += ` LIMIT ?`;
-        params.push(limit);
+        let limitQuery = `
+          SELECT id FROM ${fullTableName} 
+          WHERE thread_id = ? 
+          ORDER BY created_at DESC 
+          LIMIT ?
+        `;
+        const limitParams = [threadId, limit];
+
+        const latestResults = await this.executeQuery(limitQuery, limitParams);
+        for (const row of latestResults) {
+          messageIdsToFetch.add(row.id);
+        }
       }
 
-      const results = await this.executeQuery(sql, params);
+      // Now fetch all the messages we need
+      let mainQuery;
+      let mainParams: any[];
+
+      if (messageIdsToFetch.size > 0) {
+        const messageIds = Array.from(messageIdsToFetch);
+        const placeholders = messageIds.map(() => '?').join(',');
+
+        mainQuery = `
+          SELECT * FROM ${fullTableName} 
+          WHERE thread_id = ? AND id IN (${placeholders}) 
+          ORDER BY created_at ASC
+        `;
+        mainParams = [threadId, ...messageIds];
+      } else {
+        // Fallback to getting the latest messages
+        mainQuery = `
+          SELECT * FROM ${fullTableName} 
+          WHERE thread_id = ? 
+          ORDER BY created_at ASC 
+          LIMIT ?
+        `;
+        mainParams = [threadId, limit > 0 ? limit : 40];
+      }
+
+      const results = await this.executeQuery(mainQuery, mainParams);
 
       // Process messages
       const messages = results.map((msg: any) => {
@@ -436,6 +637,14 @@ export class D1Store extends MastraStorage {
         return processedMsg as unknown as T;
       });
 
+      // Sort by creation time to ensure proper order
+      messages.sort((a: any, b: any) => {
+        const timeA = new Date(a.created_at || a.createdAt).getTime();
+        const timeB = new Date(b.created_at || b.createdAt).getTime();
+        return timeA - timeB;
+      });
+
+      this.logger.debug(`Retrieved ${messages.length} messages for thread ${threadId}`);
       return messages;
     } catch (error) {
       this.logger.error(`Error retrieving messages for thread ${threadId}:`, { error });
@@ -492,11 +701,47 @@ export class D1Store extends MastraStorage {
   async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
     if (records.length === 0) return;
 
-    // Process each record individually for now
-    // In a future optimization, this could use a transaction or bulk insert
+    const fullTableName = this.getTableName(tableName);
+
     try {
-      for (const record of records) {
-        await this.insert({ tableName, record });
+      // Use a transaction for better performance and atomicity
+      const beginTxn = `BEGIN TRANSACTION`;
+      await this.executeQuery(beginTxn);
+
+      try {
+        // Process records in batches for better performance
+        const batchSize = 50; // Adjust based on performance testing
+
+        for (let i = 0; i < records.length; i += batchSize) {
+          const batch = records.slice(i, i + batchSize);
+
+          // Process each record in the current batch
+          for (const record of batch) {
+            const now = new Date();
+            const recordToInsert = {
+              ...record,
+              createdAt: record.createdAt || now,
+              updatedAt: record.updatedAt || now,
+            };
+
+            await this.insert({ tableName, record: recordToInsert });
+          }
+
+          this.logger.debug(
+            `Processed batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(records.length / batchSize)}`,
+          );
+        }
+
+        // Commit the transaction if all inserts succeeded
+        const commitTxn = `COMMIT`;
+        await this.executeQuery(commitTxn);
+
+        this.logger.debug(`Successfully batch inserted ${records.length} records into ${tableName}`);
+      } catch (error) {
+        // Rollback on error
+        const rollbackTxn = `ROLLBACK`;
+        await this.executeQuery(rollbackTxn);
+        throw error;
       }
     } catch (error) {
       this.logger.error(`Error batch inserting into ${tableName}:`, { error });
@@ -600,59 +845,5 @@ export class D1Store extends MastraStorage {
 
   async close(): Promise<void> {
     // No explicit cleanup needed for D1
-  }
-
-  async query<T>({
-    tableName,
-    filter,
-    limit = 100,
-    offset = 0,
-  }: {
-    tableName: TABLE_NAMES;
-    filter?: Record<string, any>;
-    limit?: number;
-    offset?: number;
-  }): Promise<T[]> {
-    const fullTableName = this.getTableName(tableName);
-
-    try {
-      let sql = `SELECT * FROM ${fullTableName}`;
-      const params: any[] = [];
-
-      // Add WHERE clauses for each filter condition
-      if (filter && Object.keys(filter).length > 0) {
-        const conditions = [];
-
-        for (const [key, value] of Object.entries(filter)) {
-          conditions.push(`${key} = ?`);
-          params.push(this.serializeValue(value));
-        }
-
-        if (conditions.length > 0) {
-          sql += ` WHERE ${conditions.join(' AND ')}`;
-        }
-      }
-
-      // Add pagination
-      sql += ` LIMIT ? OFFSET ?`;
-      params.push(limit, offset);
-
-      this.logger.debug(`Executing query on ${fullTableName}`, { sql, params });
-      const results = await this.executeQuery(sql, params);
-
-      // Process results to deserialize values
-      return results.map((row: any) => {
-        const processedRow: Record<string, any> = {};
-
-        for (const [key, value] of Object.entries(row)) {
-          processedRow[key] = this.deserializeValue(value);
-        }
-
-        return processedRow as unknown as T;
-      });
-    } catch (error) {
-      this.logger.error(`Error querying ${fullTableName}:`, { error });
-      return [];
-    }
   }
 }
