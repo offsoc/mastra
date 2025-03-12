@@ -13,6 +13,7 @@ import { getActivePathsAndStatus, mergeChildValue } from './utils';
 export interface WorkflowResultReturn<T extends z.ZodType<any>, TSteps extends Step<any, any, any>[]> {
   runId: string;
   start: (props?: { triggerData?: z.infer<T> } | undefined) => Promise<WorkflowRunResult<T, TSteps>>;
+  watch: (onTransition: (state: WorkflowRunState) => void) => () => void;
 }
 
 export class WorkflowInstance<TSteps extends Step<any, any, any>[] = any, TTriggerSchema extends z.ZodObject<any> = any>
@@ -51,7 +52,6 @@ export class WorkflowInstance<TSteps extends Step<any, any, any>[] = any, TTrigg
     mastra,
     stepGraph,
     stepSubscriberGraph,
-    onStepTransition,
     onFinish,
   }: {
     name: string;
@@ -62,7 +62,6 @@ export class WorkflowInstance<TSteps extends Step<any, any, any>[] = any, TTrigg
     runId?: string;
     stepGraph: StepGraph;
     stepSubscriberGraph: Record<string, StepGraph>;
-    onStepTransition: Set<(state: WorkflowRunState) => void | Promise<void>>;
     onFinish?: () => void;
   }) {
     this.name = name;
@@ -76,7 +75,7 @@ export class WorkflowInstance<TSteps extends Step<any, any, any>[] = any, TTrigg
     this.#mastra = mastra;
 
     this.#runId = runId ?? crypto.randomUUID();
-    this.#onStepTransition = onStepTransition;
+
     this.#onFinish = onFinish;
 
     this.#initializeCompoundDependencies();
@@ -92,6 +91,14 @@ export class WorkflowInstance<TSteps extends Step<any, any, any>[] = any, TTrigg
 
   get executionSpan() {
     return this.#executionSpan;
+  }
+
+  watch(onTransition: (state: WorkflowRunState) => void): () => void {
+    this.#onStepTransition.add(onTransition);
+
+    return () => {
+      this.#onStepTransition.delete(onTransition);
+    };
   }
 
   async start({ triggerData }: { triggerData?: z.infer<TTriggerSchema> } = {}) {

@@ -43,7 +43,6 @@ export class Workflow<
   #stepGraph: StepGraph = { initial: [] };
   #stepSubscriberGraph: Record<string, StepGraph> = {};
   #steps: Record<string, StepAction<any, any, any, any>> = {};
-  #onStepTransition: Set<(state: WorkflowRunState) => void | Promise<void>> = new Set();
 
   /**
    * Creates a new Workflow instance
@@ -453,7 +452,6 @@ export class Workflow<
       stepGraph: this.#stepGraph,
       stepSubscriberGraph: this.#stepSubscriberGraph,
 
-      onStepTransition: this.#onStepTransition,
       onFinish: () => {
         this.#runs.delete(run.runId);
       },
@@ -462,6 +460,7 @@ export class Workflow<
     return {
       start: run.start.bind(run),
       runId: run.runId,
+      watch: run.watch.bind(run),
     };
   }
 
@@ -648,14 +647,6 @@ export class Workflow<
     return null;
   }
 
-  watch(onTransition: (state: WorkflowRunState) => void): () => void {
-    this.#onStepTransition.add(onTransition);
-
-    return () => {
-      this.#onStepTransition.delete(onTransition);
-    };
-  }
-
   async resume({
     runId,
     stepId,
@@ -763,7 +754,6 @@ export class Workflow<
         stepGraph: this.#stepGraph,
         stepSubscriberGraph: this.#stepSubscriberGraph,
 
-        onStepTransition: this.#onStepTransition,
         runId,
         onFinish: () => {
           this.#runs.delete(run.runId);

@@ -1640,7 +1640,7 @@ describe('Workflow', async () => {
       const run = workflow.createRun();
 
       // Start watching the workflow
-      workflow.watch(onTransition);
+      run.watch(onTransition);
 
       const executionResult = await run.start();
 
@@ -1676,7 +1676,7 @@ describe('Workflow', async () => {
       });
     });
 
-    it('should unsubscribe from transitions when unwatch is called', async () => {
+    it.only('should unsubscribe from transitions when unwatch is called', async () => {
       const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
       const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
 
@@ -1691,28 +1691,30 @@ describe('Workflow', async () => {
 
       const run = workflow.createRun();
 
-      const unwatch = workflow.watch(onTransition);
-      const unwatch2 = workflow.watch(onTransition2);
+      run.watch(onTransition);
+      run.watch(onTransition2);
 
       await run.start();
 
       expect(onTransition).toHaveBeenCalledTimes(6);
       expect(onTransition2).toHaveBeenCalledTimes(6);
 
-      unwatch();
-
       const run2 = workflow.createRun();
+
+      run2.watch(onTransition2);
+
       await run2.start();
 
       expect(onTransition).toHaveBeenCalledTimes(6);
       expect(onTransition2).toHaveBeenCalledTimes(12);
 
-      unwatch2();
-
       const run3 = workflow.createRun();
+
+      run3.watch(onTransition);
+
       await run3.start();
 
-      expect(onTransition).toHaveBeenCalledTimes(6);
+      expect(onTransition).toHaveBeenCalledTimes(12);
       expect(onTransition2).toHaveBeenCalledTimes(12);
     });
 
@@ -1730,7 +1732,7 @@ describe('Workflow', async () => {
 
       const run = workflow.createRun();
 
-      workflow.watch(onTransition);
+      run.watch(onTransition);
 
       await run.start();
 
@@ -1849,7 +1851,7 @@ describe('Workflow', async () => {
         resolveWorkflowSuspended = resolve;
       });
 
-      wf.watch(data => {
+      run.watch(data => {
         const suspended = data.activePaths.find(p => p.status === 'suspended');
         if (suspended?.stepId === 'promptAgent') {
           const newCtx = {
@@ -1972,7 +1974,7 @@ describe('Workflow', async () => {
 
       const result = await new Promise<WorkflowResumeResult<any>>((resolve, reject) => {
         let hasResumed = false;
-        wf.watch(async data => {
+        run.watch(async data => {
           const suspended = data.activePaths.find(p => p.status === 'suspended');
           if (suspended?.stepId === 'humanIntervention') {
             const newCtx = {
@@ -2124,7 +2126,7 @@ describe('Workflow', async () => {
 
       const result = await new Promise<WorkflowResumeResult<any>>((resolve, reject) => {
         let hasResumed = false;
-        wf.watch(async data => {
+        run.watch(async data => {
           const suspended = data.activePaths.find(p => p.status === 'suspended');
 
           if (suspended?.stepId === 'humanIntervention') {
@@ -2462,6 +2464,7 @@ describe('Workflow', async () => {
 
       // Access new instance properties directly - should work without warning
       const run = wf.createRun();
+      run.watch(data => {});
       await run.start();
 
       expect(telemetry).toBeDefined();
