@@ -1,242 +1,118 @@
-import type { StorageThreadType, MessageType } from '@mastra/core/memory';
-import { MastraStorage, TABLE_MESSAGES, TABLE_THREADS, TABLE_WORKFLOW_SNAPSHOT } from '@mastra/core/storage';
+import type { StorageThreadType, MessageType, MemoryConfig } from '@mastra/core/memory';
+import {
+  MastraStorage,
+  TABLE_MESSAGES,
+  TABLE_THREADS,
+  TABLE_WORKFLOW_SNAPSHOT,
+  TABLE_EVALS,
+  TABLE_TRACES,
+} from '@mastra/core/storage';
 import type { TABLE_NAMES, StorageColumn, StorageGetMessagesArg, EvalRow } from '@mastra/core/storage';
 import type { WorkflowRunState } from '@mastra/core/workflows';
+import type { MetricResult, TestInfo } from '@mastra/core/eval';
 import Cloudflare from 'cloudflare';
 
-export interface CloudflareConfig {
+export interface D1Config {
   accountId: string;
   apiToken: string;
-  namespacePrefix: string;
+  databaseId: string;
+  tablePrefix?: string;
 }
 
-export class CloudflareStore extends MastraStorage {
+export class D1Store extends MastraStorage {
   private client: Cloudflare;
   private accountId: string;
-  private namespacePrefix: string;
+  private databaseId: string;
+  private tablePrefix: string;
 
-  constructor(config: CloudflareConfig) {
-    super({ name: 'Cloudflare' });
+  constructor(config: D1Config) {
+    super({ name: 'D1' });
     this.accountId = config.accountId;
-    this.namespacePrefix = config.namespacePrefix;
+    this.databaseId = config.databaseId;
+    this.tablePrefix = config.tablePrefix || '';
 
     this.client = new Cloudflare({
       apiToken: config.apiToken,
     });
   }
 
-  private async getNamespaceIdByName(namespaceName: string): Promise<string | null> {
-    try {
-      const response = await this.client.kv.namespaces.list({ account_id: this.accountId });
-      const namespace = response.result.find(ns => ns.title === namespaceName);
-      return namespace ? namespace.id : null;
-    } catch (error: any) {
-      console.error('Error fetching namespace ID:', error);
-      try {
-        // List all namespaces and log them to help debug
-        const allNamespaces = await this.client.kv.namespaces.list({ account_id: this.accountId });
-        console.log(
-          'Available namespaces:',
-          allNamespaces.result.map(ns => ({ title: ns.title, id: ns.id })),
-        );
-        return null;
-      } catch {
-        return null;
-      }
-    }
+  // Helper method to get the full table name with prefix
+  private getTableName(tableName: TABLE_NAMES): string {
+    return `${this.tablePrefix}${tableName}`;
   }
 
-  private async createNamespace(namespaceName: string): Promise<string> {
+  // Execute a D1 query
+  private async executeQuery(query: string, params: any[] = []): Promise<any> {
     try {
-      const response = await this.client.kv.namespaces.create({
+      this.logger.debug('Executing D1 query', { query, params });
+
+      const response = await this.client.d1.database.query(this.databaseId, {
         account_id: this.accountId,
-        title: namespaceName,
+        sql: query,
+        params,
       });
-      return response.id;
-    } catch (error: any) {
-      // Check if the error is because it already exists
-      if (error.message && error.message.includes('already exists')) {
-        // Try to get it again since we know it exists
-        const namespaces = await this.client.kv.namespaces.list({ account_id: this.accountId });
-        const namespace = namespaces.result.find(ns => ns.title === namespaceName);
-        if (namespace) return namespace.id;
+
+      // Check if we have a response
+      if (!response) {
+        this.logger.error('D1 query failed - no response', { query, params });
+        throw new Error('D1 query failed - no response received');
       }
-      console.error('Error creating namespace:', error);
-      throw new Error(`Failed to create namespace ${namespaceName}: ${error.message}`);
-    }
-  }
 
-  private async getOrCreateNamespaceId(namespaceName: string): Promise<string> {
-    let namespaceId = await this.getNamespaceIdByName(namespaceName);
-    if (!namespaceId) {
-      namespaceId = await this.createNamespace(namespaceName);
-    }
-    return namespaceId;
-  }
-
-  private async getNamespaceId(tableName: TABLE_NAMES): Promise<string> {
-    const prefix = this.namespacePrefix;
-
-    try {
-      if (tableName === TABLE_MESSAGES || tableName === TABLE_THREADS) {
-        return await this.getOrCreateNamespaceId(`${prefix}_mastra_threads`);
-      } else if (tableName === TABLE_WORKFLOW_SNAPSHOT) {
-        return await this.getOrCreateNamespaceId(`${prefix}_mastra_workflows`);
+      // For SELECT queries, response.result will be an array of rows
+      // For other queries (INSERT, UPDATE, DELETE), we'll check if result exists
+      if (Array.isArray(response.result)) {
+        return response.result;
+      } else if (query.trim().toUpperCase().startsWith('SELECT')) {
+        // If it's a SELECT query but no results, return empty array
+        return [];
       } else {
-        return await this.getOrCreateNamespaceId(`${prefix}_mastra_evals`);
+        // For non-SELECT queries, return the result (which might be empty for operations like DELETE)
+        return response.result || { affected: 0 };
       }
-    } catch (error: any) {
-      console.error('Error fetching namespace ID:', error);
-      throw new Error(`Failed to fetch namespace ID for table ${tableName}: ${error.message}`);
-    }
-  }
-
-  private async putKV(tableName: TABLE_NAMES, key: string, value: any): Promise<void> {
-    try {
-      const namespaceId = await this.getNamespaceId(tableName);
-      await this.client.kv.namespaces.values.update(namespaceId, key, {
-        account_id: this.accountId,
-        value: JSON.stringify(value),
-        metadata: '',
-      });
-    } catch (error: any) {
-      console.error('Error putting KV:', error);
-      throw new Error(`Failed to put KV for table ${tableName}, key ${key}: ${error.message}`);
-    }
-  }
-
-  private async getKV(tableName: TABLE_NAMES, key: string): Promise<string | null> {
-    try {
-      console.log('getKV', tableName, key);
-      const namespaceId = await this.getNamespaceId(tableName);
-      console.log('namespaceId', namespaceId);
-
-      try {
-        const response = await this.client.kv.namespaces.values.get(namespaceId, key, {
-          account_id: this.accountId,
-        });
-        const text = await response.text();
-        return text === '' ? null : text;
-      } catch (error: any) {
-        // Handle "key not found" error gracefully
-        if (error.message && error.message.includes('key not found')) {
-          console.log(`Key not found: ${key}`);
-          return null;
-        }
-        throw error; // Rethrow other errors
-      }
-    } catch (error: any) {
-      console.error('Error getting KV:', error);
-      return null; // Return null instead of throwing to make the code more resilient
-    }
-  }
-
-  private async deleteKV(tableName: TABLE_NAMES, key: string): Promise<void> {
-    try {
-      const namespaceId = await this.getNamespaceId(tableName);
-      await this.client.kv.namespaces.values.delete(namespaceId, key, {
-        account_id: this.accountId,
-      });
-    } catch (error: any) {
-      console.error('Error deleting KV:', error);
-      throw new Error(`Failed to delete KV for table ${tableName}, key ${key}: ${error.message}`);
-    }
-  }
-
-  private async listKV(tableName: TABLE_NAMES): Promise<Array<{ name: string }>> {
-    try {
-      const namespaceId = await this.getNamespaceId(tableName);
-      const response = await this.client.kv.namespaces.keys.list(namespaceId, {
-        account_id: this.accountId,
-        limit: 1000,
-      });
-      return response.result.map(item => ({ name: item.name }));
-    } catch (error: any) {
-      console.error('Error listing KV:', error);
-      throw new Error(`Failed to list KV for table ${tableName}: ${error.message}`);
-    }
-  }
-
-  /*---------------------------------------------------------------------------
-    Sorted set simulation helpers for message ordering.
-    We store an array of objects { id, score } as JSON under a dedicated key.
-  ---------------------------------------------------------------------------*/
-
-  private async getSortedOrder(
-    tableName: TABLE_NAMES,
-    orderKey: string,
-  ): Promise<Array<{ id: string; score: number }>> {
-    const raw = await this.getKV(tableName, orderKey);
-    if (!raw) return [];
-    try {
-      const arr = JSON.parse(raw);
-      return Array.isArray(arr) ? arr : [];
-    } catch (e) {
-      return [];
-    }
-  }
-
-  private async updateSortedOrder(
-    tableName: TABLE_NAMES,
-    orderKey: string,
-    newEntries: Array<{ id: string; score: number }>,
-  ): Promise<void> {
-    try {
-      const currentOrder = await this.getSortedOrder(tableName, orderKey);
-
-      // Merge new entries without duplicates
-      for (const entry of newEntries) {
-        const existingIndex = currentOrder.findIndex(e => e.id === entry.id);
-        if (existingIndex >= 0) {
-          // Update existing entry's score if needed
-          if (currentOrder[existingIndex]) {
-            currentOrder[existingIndex].score = entry.score;
-          }
-        } else {
-          // Add new entry
-          currentOrder.push(entry);
-        }
-      }
-
-      currentOrder.sort((a, b) => a.score - b.score);
-      await this.putKV(tableName, orderKey, JSON.stringify(currentOrder));
     } catch (error) {
-      console.error(`Error updating sorted order for key ${orderKey}:`, error);
-      // Create a new sorted order if it doesn't exist
-      await this.putKV(tableName, orderKey, JSON.stringify(newEntries));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error('Error executing D1 query:', { query, params, error });
+      throw new Error(`D1 query execution failed: ${errorMessage}`);
     }
   }
 
-  private async getRank(tableName: TABLE_NAMES, orderKey: string, id: string): Promise<number | null> {
-    const order = await this.getSortedOrder(tableName, orderKey);
-    const index = order.findIndex(item => item.id === id);
-    return index >= 0 ? index : null;
+  // Execute a D1 query and return the first result
+  private async executeQueryFirst(query: string, params: any[] = []): Promise<any> {
+    try {
+      const result = await this.executeQuery(query, params);
+
+      // Check if the result is an array (for SELECT queries)
+      if (Array.isArray(result)) {
+        return result.length > 0 ? result[0] : null;
+      }
+
+      // For non-SELECT queries, just return the result
+      return result;
+    } catch (error) {
+      this.logger.error('Error executing D1 query first:', { query, params, error });
+      throw error; // Re-throw to be handled by the caller
+    }
   }
 
-  private async getRange(tableName: TABLE_NAMES, orderKey: string, start: number, end: number): Promise<string[]> {
-    const order = await this.getSortedOrder(tableName, orderKey);
-    const sliced = order.slice(start, end + 1);
-    return sliced.map(item => item.id);
+  // Helper to convert storage type to SQL type
+  private getSqlType(type: string): string {
+    switch (type) {
+      case 'text':
+        return 'TEXT';
+      case 'timestamp':
+        return 'TIMESTAMP';
+      case 'integer':
+        return 'INTEGER';
+      case 'bigint':
+        return 'INTEGER'; // SQLite doesn't have a separate BIGINT type
+      case 'jsonb':
+        return 'TEXT'; // Store JSON as TEXT in SQLite
+      default:
+        return 'TEXT';
+    }
   }
 
-  private async getLastN(tableName: TABLE_NAMES, orderKey: string, n: number): Promise<string[]> {
-    const order = await this.getSortedOrder(tableName, orderKey);
-    const sliced = order.slice(-n);
-    return sliced.map(item => item.id);
-  }
-
-  private async getFullOrder(tableName: TABLE_NAMES, orderKey: string): Promise<string[]> {
-    const order = await this.getSortedOrder(tableName, orderKey);
-    return order.map(item => item.id);
-  }
-
-  //////////////////////////////////////////
-
-  private getKey(tableName: TABLE_NAMES, keys: Record<string, any>): string {
-    const keyParts = Object.entries(keys).map(([key, value]) => `${key}:${value}`);
-    return `${tableName}:${keyParts.join(':')}`;
-  }
-
+  // Helper methods for date handling and serialization
   private ensureDate(date: Date | string | undefined): Date | undefined {
     if (!date) return undefined;
     return date instanceof Date ? date : new Date(date);
@@ -248,6 +124,48 @@ export class CloudflareStore extends MastraStorage {
     return dateObj?.toISOString();
   }
 
+  // Helper to serialize objects to JSON strings
+  private serializeValue(value: any): any {
+    if (value === null || value === undefined) return null;
+
+    if (value instanceof Date) {
+      return this.serializeDate(value);
+    }
+
+    if (typeof value === 'object') {
+      return JSON.stringify(value);
+    }
+
+    return value;
+  }
+
+  // Helper to deserialize JSON strings to objects
+  private deserializeValue(value: any, type?: string): any {
+    if (value === null || value === undefined) return null;
+
+    if (type === 'date' && typeof value === 'string') {
+      return new Date(value);
+    }
+
+    if (type === 'jsonb' && typeof value === 'string') {
+      try {
+        return JSON.parse(value) as Record<string, any>;
+      } catch (e) {
+        return value;
+      }
+    }
+
+    if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+      try {
+        return JSON.parse(value) as Record<string, any>;
+      } catch (e) {
+        return value;
+      }
+    }
+
+    return value;
+  }
+
   async createTable({
     tableName,
     schema,
@@ -255,50 +173,104 @@ export class CloudflareStore extends MastraStorage {
     tableName: TABLE_NAMES;
     schema: Record<string, StorageColumn>;
   }): Promise<void> {
-    await this.putKV(tableName, `schema:${tableName}`, schema);
+    const fullTableName = this.getTableName(tableName);
+
+    // Build SQL columns from schema
+    const columns = Object.entries(schema)
+      .map(([colName, colDef]) => {
+        const type = this.getSqlType(colDef.type);
+        const nullable = colDef.nullable === false ? 'NOT NULL' : '';
+        const primaryKey = colDef.primaryKey ? 'PRIMARY KEY' : '';
+        return `${colName} ${type} ${nullable} ${primaryKey}`.trim();
+      })
+      .join(', ');
+
+    // Create table if not exists
+    const sql = `CREATE TABLE IF NOT EXISTS ${fullTableName} (${columns})`;
+
+    try {
+      await this.executeQuery(sql);
+      this.logger.debug(`Created table ${fullTableName}`);
+    } catch (error) {
+      this.logger.error(`Error creating table ${fullTableName}:`, { error });
+      throw new Error(`Failed to create table ${fullTableName}: ${error}`);
+    }
   }
 
   async clearTable({ tableName }: { tableName: TABLE_NAMES }): Promise<void> {
-    const keys = await this.listKV(tableName);
-    if (keys.length > 0) {
-      await Promise.all(keys.map(keyObj => this.deleteKV(tableName, keyObj.name)));
+    const fullTableName = this.getTableName(tableName);
+
+    try {
+      await this.executeQuery(`DELETE FROM ${fullTableName}`);
+      this.logger.debug(`Cleared table ${fullTableName}`);
+    } catch (error) {
+      this.logger.error(`Error clearing table ${fullTableName}:`, { error });
+      throw new Error(`Failed to clear table ${fullTableName}: ${error}`);
     }
   }
 
   async insert({ tableName, record }: { tableName: TABLE_NAMES; record: Record<string, any> }): Promise<void> {
-    let key: string;
-    if (tableName === TABLE_MESSAGES) {
-      key = this.getKey(tableName, { threadId: record.threadId, id: record.id });
-    } else {
-      key = this.getKey(tableName, { id: record.id });
+    const fullTableName = this.getTableName(tableName);
+
+    // Process record for SQL insertion
+    const processedRecord: Record<string, any> = {};
+
+    for (const [key, value] of Object.entries(record)) {
+      processedRecord[key] = this.serializeValue(value);
     }
 
-    const processedRecord = {
-      ...record,
-      createdAt: this.serializeDate(record.createdAt),
-      updatedAt: this.serializeDate(record.updatedAt),
-    };
+    const columns = Object.keys(processedRecord).join(', ');
+    const placeholders = Object.keys(processedRecord)
+      .map(() => '?')
+      .join(', ');
+    const values = Object.values(processedRecord);
 
-    await this.putKV(tableName, key, processedRecord);
+    const sql = `INSERT OR REPLACE INTO ${fullTableName} (${columns}) VALUES (${placeholders})`;
+
+    try {
+      await this.executeQuery(sql, values);
+    } catch (error) {
+      this.logger.error(`Error inserting into ${fullTableName}:`, { error });
+      throw new Error(`Failed to insert into ${fullTableName}: ${error}`);
+    }
   }
 
   async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
-    const key = this.getKey(tableName, keys);
-    const data = await this.getKV(tableName, key);
+    const fullTableName = this.getTableName(tableName);
 
-    if (!data) return null;
+    // Build WHERE clause from keys
+    const whereConditions = Object.keys(keys)
+      .map(key => `${key} = ?`)
+      .join(' AND ');
+    const values = Object.values(keys);
+
+    const sql = `SELECT * FROM ${fullTableName} WHERE ${whereConditions} LIMIT 1`;
 
     try {
-      return JSON.parse(data) as R;
+      const result = await this.executeQueryFirst(sql, values);
+
+      if (!result) return null;
+
+      // Process result to handle JSON fields
+      const processedResult: Record<string, any> = {};
+
+      for (const [key, value] of Object.entries(result)) {
+        processedResult[key] = this.deserializeValue(value);
+      }
+
+      return processedResult as unknown as R;
     } catch (error) {
-      console.error(`Failed to parse JSON data for key ${key}:`, error);
-      console.debug('Raw data:', data);
+      this.logger.error(`Error loading from ${fullTableName}:`, { error });
       return null;
     }
   }
 
   async getThreadById({ threadId }: { threadId: string }): Promise<StorageThreadType | null> {
-    const thread = await this.load<StorageThreadType>({ tableName: TABLE_THREADS, keys: { id: threadId } });
+    const thread = await this.load<StorageThreadType>({
+      tableName: TABLE_THREADS,
+      keys: { id: threadId },
+    });
+
     if (!thread) return null;
 
     try {
@@ -308,41 +280,51 @@ export class CloudflareStore extends MastraStorage {
         updatedAt: this.ensureDate(thread.updatedAt)!,
         metadata:
           typeof thread.metadata === 'string'
-            ? thread.metadata
-              ? JSON.parse(thread.metadata)
-              : {}
+            ? (JSON.parse(thread.metadata || '{}') as Record<string, any>)
             : thread.metadata || {},
       };
     } catch (error) {
-      console.error(`Error processing thread ${threadId}:`, error);
+      this.logger.error(`Error processing thread ${threadId}:`, { error });
       return null;
     }
   }
 
   async getThreadsByResourceId({ resourceId }: { resourceId: string }): Promise<StorageThreadType[]> {
-    const keyList = await this.listKV(TABLE_THREADS);
-    const threads = await Promise.all(
-      keyList.map(async keyObj => {
-        const data = await this.getKV(TABLE_THREADS, keyObj.name);
-        return data ? (JSON.parse(data) as StorageThreadType) : null;
-      }),
-    );
-    return threads
-      .filter(thread => thread && thread.resourceId === resourceId)
-      .map(thread => ({
-        ...thread!,
-        createdAt: this.ensureDate(thread!.createdAt)!,
-        updatedAt: this.ensureDate(thread!.updatedAt)!,
-        metadata: typeof thread!.metadata === 'string' ? JSON.parse(thread!.metadata) : thread!.metadata,
+    const fullTableName = this.getTableName(TABLE_THREADS);
+
+    try {
+      const sql = `SELECT * FROM ${fullTableName} WHERE resourceId = ?`;
+      const results = await this.executeQuery(sql, [resourceId]);
+
+      return results.map((thread: any) => ({
+        ...thread,
+        createdAt: this.ensureDate(thread.createdAt)!,
+        updatedAt: this.ensureDate(thread.updatedAt)!,
+        metadata:
+          typeof thread.metadata === 'string'
+            ? (JSON.parse(thread.metadata || '{}') as Record<string, any>)
+            : thread.metadata || {},
       }));
+    } catch (error) {
+      this.logger.error(`Error getting threads by resourceId ${resourceId}:`, { error });
+      return [];
+    }
   }
 
   async saveThread({ thread }: { thread: StorageThreadType }): Promise<StorageThreadType> {
+    const now = new Date();
+    const threadToSave = {
+      ...thread,
+      createdAt: thread.createdAt || now,
+      updatedAt: now,
+      metadata: thread.metadata || ({} as Record<string, any>),
+    };
+
     await this.insert({
       tableName: TABLE_THREADS,
-      record: thread,
+      record: threadToSave as Record<string, any>,
     });
-    return thread;
+    return threadToSave;
   }
   async updateThread({
     id,
@@ -361,9 +343,10 @@ export class CloudflareStore extends MastraStorage {
       ...thread,
       title,
       metadata: {
-        ...thread.metadata,
-        ...metadata,
+        ...(thread.metadata as Record<string, any>),
+        ...(metadata as Record<string, any>),
       },
+      updatedAt: new Date(),
     };
     await this.insert({
       tableName: TABLE_THREADS,
@@ -373,144 +356,89 @@ export class CloudflareStore extends MastraStorage {
   }
 
   async deleteThread({ threadId }: { threadId: string }): Promise<void> {
-    const key = this.getKey(TABLE_THREADS, { id: threadId });
-    await this.deleteKV(TABLE_THREADS, key);
+    const fullTableName = this.getTableName(TABLE_THREADS);
+
+    try {
+      await this.executeQuery(`DELETE FROM ${fullTableName} WHERE id = ?`, [threadId]);
+
+      // Also delete associated messages
+      const messagesTableName = this.getTableName(TABLE_MESSAGES);
+      await this.executeQuery(`DELETE FROM ${messagesTableName} WHERE thread_id = ?`, [threadId]);
+    } catch (error) {
+      this.logger.error(`Error deleting thread ${threadId}:`, { error });
+      throw new Error(`Failed to delete thread ${threadId}: ${error}`);
+    }
   }
 
-  private getMessageKey(threadId: string, messageId: string): string {
-    return this.getKey(TABLE_MESSAGES, { threadId, id: messageId });
-  }
-  private getThreadMessagesKey(threadId: string): string {
-    return `thread:${threadId}:messages`;
-  }
+  // Thread and message management methods
 
   async saveMessages({ messages }: { messages: MessageType[] }): Promise<MessageType[]> {
     if (messages.length === 0) return [];
 
     try {
       // Save each message individually
-      await Promise.all(
-        messages.map(async (message, index) => {
-          const typedMessage = { ...message } as MessageType & { _index?: number };
-          if (typedMessage._index === undefined) {
-            typedMessage._index = index;
-          }
-          const key = this.getMessageKey(message.threadId, message.id);
-          await this.putKV(TABLE_MESSAGES, key, typedMessage);
-        }),
-      );
-
-      // Update sorted order for each thread
-      const threadsMap = new Map<string, Array<{ id: string; score: number }>>();
       for (const message of messages) {
-        const typedMessage = message as MessageType & { _index?: number };
-        const score = typedMessage._index !== undefined ? typedMessage._index : new Date(message.createdAt).getTime();
-        if (!threadsMap.has(message.threadId)) {
-          threadsMap.set(message.threadId, []);
-        }
-        threadsMap.get(message.threadId)!.push({ id: message.id, score });
+        await this.insert({
+          tableName: TABLE_MESSAGES,
+          record: {
+            ...message,
+            thread_id: message.threadId,
+          } as Record<string, any>,
+        });
       }
-
-      await Promise.all(
-        Array.from(threadsMap.entries()).map(async ([threadId, entries]) => {
-          try {
-            const orderKey = this.getThreadMessagesKey(threadId);
-            await this.updateSortedOrder(TABLE_MESSAGES, orderKey, entries);
-          } catch (error) {
-            console.error(`Error updating message order for thread ${threadId}:`, error);
-          }
-        }),
-      );
 
       return messages;
     } catch (error) {
-      console.error('Error saving messages:', error);
+      this.logger.error('Error saving messages:', { error });
       throw error;
     }
   }
 
-  async getMessages<T = unknown>({ threadId, selectBy }: StorageGetMessagesArg): Promise<T[]> {
+  // SQL-based implementation of getMessages
+
+  async getMessages<T = MessageType>({ threadId, selectBy, threadConfig }: StorageGetMessagesArg): Promise<T[]> {
     const limit = typeof selectBy?.last === 'number' ? selectBy.last : 40;
-    const messageIds = new Set<string>();
-    const threadMessagesKey = this.getThreadMessagesKey(threadId);
+    const fullTableName = this.getTableName(TABLE_MESSAGES);
 
     if (limit === 0 && !selectBy?.include) {
       return [];
     }
 
     try {
-      // Get specifically included messages and their context
+      let sql = `SELECT * FROM ${fullTableName} WHERE thread_id = ?`;
+      const params: any[] = [threadId];
+
+      // Handle specifically included messages
       if (selectBy?.include?.length) {
-        for (const item of selectBy.include) {
-          messageIds.add(item.id);
-          if (item.withPreviousMessages || item.withNextMessages) {
-            const rank = await this.getRank(TABLE_MESSAGES, threadMessagesKey, item.id);
-            if (rank === null) continue;
-            if (item.withPreviousMessages) {
-              const start = Math.max(0, rank - item.withPreviousMessages);
-              const prevIds = await this.getRange(TABLE_MESSAGES, threadMessagesKey, start, rank - 1);
-              prevIds.forEach(id => messageIds.add(id));
-            }
-            if (item.withNextMessages) {
-              const nextIds = await this.getRange(
-                TABLE_MESSAGES,
-                threadMessagesKey,
-                rank + 1,
-                rank + item.withNextMessages,
-              );
-              nextIds.forEach(id => messageIds.add(id));
-            }
-          }
-        }
+        const messageIds = selectBy.include.map(item => item.id);
+        sql += ` AND id IN (${messageIds.map(() => '?').join(',')})`;
+        params.push(...messageIds);
       }
 
-      // Then get the most recent messages
+      // Order by creation time and limit
+      sql += ` ORDER BY createdAt ASC`;
+
       if (limit > 0) {
-        try {
-          const latestIds = await this.getLastN(TABLE_MESSAGES, threadMessagesKey, limit);
-          latestIds.forEach(id => messageIds.add(id));
-        } catch (error) {
-          console.log(`No message order found for thread ${threadId}, skipping latest messages`);
+        sql += ` LIMIT ?`;
+        params.push(limit);
+      }
+
+      const results = await this.executeQuery(sql, params);
+
+      // Process messages
+      const messages = results.map((msg: any) => {
+        const processedMsg: Record<string, any> = {};
+
+        for (const [key, value] of Object.entries(msg)) {
+          processedMsg[key] = this.deserializeValue(value);
         }
-      }
 
-      // Fetch all needed messages
-      const messages = (
-        await Promise.all(
-          Array.from(messageIds).map(async id => {
-            try {
-              const key = this.getMessageKey(threadId, id);
-              const data = await this.getKV(TABLE_MESSAGES, key);
-              if (!data) return null;
-              return JSON.parse(data) as MessageType & { _index?: number };
-            } catch (error) {
-              console.error(`Error retrieving message ${id}:`, error);
-              return null;
-            }
-          }),
-        )
-      ).filter(msg => msg !== null) as (MessageType & { _index?: number })[];
+        return processedMsg as unknown as T;
+      });
 
-      // Sort messages correctly
-      try {
-        const messageOrder = await this.getFullOrder(TABLE_MESSAGES, threadMessagesKey);
-        messages.sort((a, b) => {
-          const indexA = messageOrder.indexOf(a.id);
-          const indexB = messageOrder.indexOf(b.id);
-
-          if (indexA >= 0 && indexB >= 0) return indexA - indexB;
-          if (a._index !== undefined && b._index !== undefined) return a._index - b._index;
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        });
-      } catch (error) {
-        console.log('Error sorting messages, falling back to creation time:', error);
-        messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-      }
-
-      // Return properly formatted messages
-      return messages.map(({ _index, ...message }) => message as unknown as T);
+      return messages;
     } catch (error) {
-      console.error(`Error retrieving messages for thread ${threadId}:`, error);
+      this.logger.error(`Error retrieving messages for thread ${threadId}:`, { error });
       return [];
     }
   }
@@ -522,12 +450,22 @@ export class CloudflareStore extends MastraStorage {
     snapshot: WorkflowRunState;
   }): Promise<void> {
     const { namespace, workflowName, runId, snapshot } = params;
-    const key = this.getKey(TABLE_WORKFLOW_SNAPSHOT, {
+
+    const data = {
       namespace,
       workflow_name: workflowName,
       run_id: runId,
+      snapshot: snapshot as unknown as Record<string, any>,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    this.logger.debug('Persisting workflow snapshot', { workflowName, runId });
+
+    await this.insert({
+      tableName: TABLE_WORKFLOW_SNAPSHOT,
+      record: data,
     });
-    await this.putKV(TABLE_WORKFLOW_SNAPSHOT, key, snapshot);
   }
 
   async loadWorkflowSnapshot(params: {
@@ -536,33 +474,185 @@ export class CloudflareStore extends MastraStorage {
     runId: string;
   }): Promise<WorkflowRunState | null> {
     const { namespace, workflowName, runId } = params;
-    const key = this.getKey(TABLE_WORKFLOW_SNAPSHOT, {
-      namespace,
-      workflow_name: workflowName,
-      run_id: runId,
+
+    this.logger.debug('Loading workflow snapshot', { workflowName, runId });
+
+    const d = await this.load<{ snapshot: unknown }>({
+      tableName: TABLE_WORKFLOW_SNAPSHOT,
+      keys: {
+        namespace,
+        workflow_name: workflowName,
+        run_id: runId,
+      },
     });
-    const data = await this.getKV(TABLE_WORKFLOW_SNAPSHOT, key);
-    return data ? (JSON.parse(data) as WorkflowRunState) : null;
+
+    return d ? (d.snapshot as WorkflowRunState) : null;
   }
 
-  batchInsert(_input: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
-    throw new Error('Method not implemented.');
+  async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
+    if (records.length === 0) return;
+
+    // Process each record individually for now
+    // In a future optimization, this could use a transaction or bulk insert
+    try {
+      for (const record of records) {
+        await this.insert({ tableName, record });
+      }
+    } catch (error) {
+      this.logger.error(`Error batch inserting into ${tableName}:`, { error });
+      throw new Error(`Failed to batch insert into ${tableName}: ${error}`);
+    }
   }
-  getTraces(_input: {
+
+  async getTraces({
+    name,
+    scope,
+    page,
+    perPage,
+    attributes,
+  }: {
     name?: string;
     scope?: string;
     page: number;
     perPage: number;
     attributes?: Record<string, string>;
   }): Promise<any[]> {
-    throw new Error('Method not implemented.');
+    const fullTableName = this.getTableName(TABLE_TRACES);
+
+    try {
+      let sql = `SELECT * FROM ${fullTableName} WHERE 1=1`;
+      const params: any[] = [];
+
+      if (name) {
+        sql += ` AND name = ?`;
+        params.push(name);
+      }
+
+      if (scope) {
+        sql += ` AND scope = ?`;
+        params.push(scope);
+      }
+
+      if (attributes && Object.keys(attributes).length > 0) {
+        // This is a simplified approach - in a real implementation,
+        // you'd need a more sophisticated way to query JSON attributes
+        sql += ` AND attributes LIKE ?`;
+        params.push(`%${JSON.stringify(attributes).slice(1, -1)}%`);
+      }
+
+      sql += ` ORDER BY startTime DESC LIMIT ? OFFSET ?`;
+      params.push(perPage, (page - 1) * perPage);
+
+      const results = await this.executeQuery(sql, params);
+
+      return results.map((trace: any) => ({
+        ...trace,
+        attributes: this.deserializeValue(trace.attributes, 'jsonb') as Record<string, any>,
+        status: this.deserializeValue(trace.status, 'jsonb') as Record<string, any>,
+        events: this.deserializeValue(trace.events, 'jsonb') as Record<string, any>[],
+        links: this.deserializeValue(trace.links, 'jsonb') as Record<string, any>[],
+      }));
+    } catch (error) {
+      this.logger.error('Error getting traces:', { error });
+      return [];
+    }
   }
 
-  getEvalsByAgentName(_agentName: string, _type?: 'test' | 'live'): Promise<EvalRow[]> {
-    throw new Error('Method not implemented.');
+  async getEvalsByAgentName(agentName: string, type?: 'test' | 'live'): Promise<EvalRow[]> {
+    const fullTableName = this.getTableName(TABLE_EVALS);
+
+    try {
+      let sql = `SELECT * FROM ${fullTableName} WHERE agent_name = ?`;
+      const params: any[] = [agentName];
+
+      if (type) {
+        sql += ` AND type = ?`;
+        params.push(type);
+      }
+
+      sql += ` ORDER BY created_at DESC`;
+
+      const results = await this.executeQuery(sql, params);
+
+      return results.map((row: any) => {
+        // Convert snake_case to camelCase for the response
+        const result = this.deserializeValue(row.result) as unknown as MetricResult;
+        const testInfo = row.test_info ? (this.deserializeValue(row.test_info) as unknown as TestInfo) : undefined;
+
+        return {
+          input: row.input,
+          output: row.output,
+          result,
+          agentName: row.agent_name,
+          metricName: row.metric_name,
+          instructions: row.instructions,
+          runId: row.run_id,
+          globalRunId: row.global_run_id,
+          createdAt: row.created_at,
+          testInfo,
+        };
+      });
+    } catch (error) {
+      this.logger.error(`Error getting evals for agent ${agentName}:`, { error });
+      return [];
+    }
   }
 
   async close(): Promise<void> {
-    // No explicit cleanup needed
+    // No explicit cleanup needed for D1
+  }
+
+  async query<T>({
+    tableName,
+    filter,
+    limit = 100,
+    offset = 0,
+  }: {
+    tableName: TABLE_NAMES;
+    filter?: Record<string, any>;
+    limit?: number;
+    offset?: number;
+  }): Promise<T[]> {
+    const fullTableName = this.getTableName(tableName);
+
+    try {
+      let sql = `SELECT * FROM ${fullTableName}`;
+      const params: any[] = [];
+
+      // Add WHERE clauses for each filter condition
+      if (filter && Object.keys(filter).length > 0) {
+        const conditions = [];
+
+        for (const [key, value] of Object.entries(filter)) {
+          conditions.push(`${key} = ?`);
+          params.push(this.serializeValue(value));
+        }
+
+        if (conditions.length > 0) {
+          sql += ` WHERE ${conditions.join(' AND ')}`;
+        }
+      }
+
+      // Add pagination
+      sql += ` LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+
+      this.logger.debug(`Executing query on ${fullTableName}`, { sql, params });
+      const results = await this.executeQuery(sql, params);
+
+      // Process results to deserialize values
+      return results.map((row: any) => {
+        const processedRow: Record<string, any> = {};
+
+        for (const [key, value] of Object.entries(row)) {
+          processedRow[key] = this.deserializeValue(value);
+        }
+
+        return processedRow as unknown as T;
+      });
+    } catch (error) {
+      this.logger.error(`Error querying ${fullTableName}:`, { error });
+      return [];
+    }
   }
 }
