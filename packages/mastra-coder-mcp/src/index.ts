@@ -14,97 +14,99 @@ const server = new FastMCP({
 
 const docsBaseDir = path.join(__dirname, '../.docs/raw/');
 
-// Helper function to recursively scan directory and generate flat list of paths
-async function scanDocs(baseDir: string): Promise<string[]> {
-  const allPaths: string[] = [];
+// Helper function to list contents of a directory
+async function listDirContents(dirPath: string): Promise<{ dirs: string[]; files: string[] }> {
+  const entries = await fs.readdir(dirPath, { withFileTypes: true });
+  const dirs: string[] = [];
+  const files: string[] = [];
 
-  async function scan(currentPath: string, relativePath: string = '') {
-    const entries = await fs.readdir(currentPath, { withFileTypes: true });
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentPath, entry.name);
-      const relPath = path.join(relativePath, entry.name);
-
-      if (entry.isDirectory()) {
-        await scan(fullPath, relPath);
-        // Add directory path with trailing slash
-        allPaths.push(relPath + '/');
-      } else if (entry.isFile() && entry.name.endsWith('.mdx')) {
-        allPaths.push(relPath);
-      }
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      dirs.push(entry.name + '/');
+    } else if (entry.isFile() && entry.name.endsWith('.mdx')) {
+      files.push(entry.name);
     }
   }
 
-  await scan(baseDir);
-  return allPaths.sort(); // Sort paths for consistent ordering
+  return {
+    dirs: dirs.sort(),
+    files: files.sort(),
+  };
 }
 
 // Helper function to read MDX files from a path
 async function readMdxContent(docPath: string): Promise<string> {
   const fullPath = path.join(docsBaseDir, docPath);
-  const stats = await fs.stat(fullPath);
 
-  if (stats.isDirectory()) {
-    // If it's a directory (ends with /), combine all MDX files
-    const files = await fs.readdir(fullPath);
-    const mdxFiles = files.filter(file => file.endsWith('.mdx')).sort(); // Sort for consistent ordering
+  // Handle directory listing
+  if (docPath.endsWith('/*')) {
+    const dirPath = docPath.slice(0, -2);
+    const { files } = await listDirContents(path.join(docsBaseDir, dirPath));
     let content = '';
 
-    for (const file of mdxFiles) {
-      const filePath = path.join(fullPath, file);
+    for (const file of files) {
+      console.error(`reading ${file}`);
+      const filePath = path.join(docsBaseDir, dirPath, file);
       const fileContent = await fs.readFile(filePath, 'utf-8');
       content += `\n\n${fileContent}`;
     }
 
     return content;
-  } else {
+  }
+
+  // Check if path exists
+  try {
+    const stats = await fs.stat(fullPath);
+
+    if (stats.isDirectory()) {
+      const { dirs, files } = await listDirContents(fullPath);
+      const message = [
+        `This is a directory. Available contents:`,
+        '',
+        'Directories:',
+        ...dirs.map(d => `- ${d}`),
+        '',
+        'Files:',
+        ...files.map(f => `- ${f}`),
+        '',
+        'To get all docs in this directory, append /* to your path.',
+      ].join('\n');
+      console.error(message);
+      return message;
+    }
+
     // If it's a file, just read it
     return fs.readFile(fullPath, 'utf-8');
+  } catch {
+    throw new Error(`Path not found: ${docPath}`);
   }
 }
 
-// Initialize paths and create Zod enum schema
-const docPaths = await scanDocs(docsBaseDir);
-if (docPaths.length === 0) {
-  throw new Error('No documentation files found');
-}
+// Get initial directory listing for the description
+const { dirs, files } = await listDirContents(docsBaseDir);
+const availablePaths = [
+  'Available top-level paths:',
+  '',
+  'Directories (append /* to get all docs in directory):',
+  ...dirs.map(d => `- ${d}`),
+  '',
+  'Files:',
+  ...files.map(f => `- ${f}`),
+].join('\n');
 
-console.error(docPaths);
-
-// Create the Zod enum schema from available paths
-const pathSchema = z.enum([docPaths[0], ...docPaths.slice(1)] as [string, ...string[]]);
-
-server.addTool({
-  name: 'listDocsPaths',
-  description: 'List all available documentation paths. Paths ending with / are directories containing multiple docs.',
-  parameters: z.object({}),
-  execute: async () => {
-    const directories = docPaths.filter(p => p.endsWith('/'));
-    const files = docPaths.filter(p => !p.endsWith('/'));
-
-    return [
-      'Available documentation paths:',
-      '',
-      'Directories (contain multiple docs):',
-      ...directories.map(d => `- ${d}`),
-      '',
-      'Individual files:',
-      ...files.map(f => `- ${f}`),
-    ].join('\n');
-  },
-});
+console.error(availablePaths);
 
 server.addTool({
   name: 'mastraDocs',
   description:
-    'Get Mastra.ai documentation for a specific path. Pick a file for specific docs or a directory for all docs in the directory.',
+    'Get Mastra.ai documentation. For directories, you can either request the directory path to see its contents, ' +
+    'or append /* to get all docs in that directory.\n\n' +
+    availablePaths,
   parameters: z.object({
-    path: pathSchema.describe(
-      'The documentation path to fetch. Can be a file path or directory path (with trailing slash)',
-    ),
+    path: z.string().describe('The documentation path to fetch'),
   }),
   execute: async args => {
-    console.error(args);
+    console.error('mastraDocs', args);
     try {
       const content = await readMdxContent(args.path);
       return content;
