@@ -13,6 +13,34 @@ import type { MetricResult, TestInfo } from '@mastra/core/eval';
 import Cloudflare from 'cloudflare';
 
 /**
+ * Interface for SQL query options with generic type support
+ */
+export interface SqlQueryOptions<T = any> {
+  /** SQL query to execute */
+  sql: string;
+  /** Parameters to bind to the query */
+  params?: unknown[];
+  /** Whether to return only the first result */
+  first?: boolean;
+  /** Optional type transformation function to apply to the results */
+  transform?: (row: Record<string, unknown>) => T;
+}
+
+/**
+ * Interface for transaction operations with generic type support
+ */
+export interface Transaction {
+  /** Execute a query within the transaction and return multiple results */
+  executeQuery<T = Record<string, unknown>>(options: SqlQueryOptions<T>): Promise<T[]>;
+  /** Execute a query within the transaction and return a single result */
+  executeQuerySingle<T = Record<string, unknown>>(options: SqlQueryOptions<T>): Promise<T | null>;
+  /** Commit the transaction */
+  commit(): Promise<void>;
+  /** Rollback the transaction */
+  rollback(): Promise<void>;
+}
+
+/**
  * Configuration for D1 using the REST API
  */
 export interface D1Config {
@@ -115,15 +143,12 @@ export class D1Store extends MastraStorage {
     }
   }
 
-  private async executeWorkersBindingQuery({
+  private async executeWorkersBindingQuery<T = Record<string, unknown>>({
     sql,
     params = [],
     first = false,
-  }: {
-    sql: string;
-    params?: any[];
-    first?: boolean;
-  }): Promise<any[] | any> {
+    transform,
+  }: SqlQueryOptions<T>): Promise<T[] | T | null> {
     // Ensure binding is defined
     if (!this.binding) {
       throw new Error('Workers binding is not configured');
@@ -137,7 +162,14 @@ export class D1Store extends MastraStorage {
       if (params.length > 0) {
         if (first) {
           result = await statement.bind(...params).first();
-          return result || null;
+          if (!result) return null;
+
+          // Apply transformation if provided
+          if (transform && typeof transform === 'function') {
+            return transform(result as Record<string, unknown>) as T;
+          }
+
+          return result as T;
         } else {
           result = await statement.bind(...params).all();
           const results = result.results || [];
@@ -152,7 +184,14 @@ export class D1Store extends MastraStorage {
       } else {
         if (first) {
           result = await statement.first();
-          return result || null;
+          if (!result) return null;
+
+          // Apply transformation if provided
+          if (transform && typeof transform === 'function') {
+            return transform(result as Record<string, unknown>) as T;
+          }
+
+          return result as T;
         } else {
           result = await statement.all();
           const results = result.results || [];
@@ -171,15 +210,12 @@ export class D1Store extends MastraStorage {
     }
   }
 
-  private async executeRestQuery({
+  private async executeRestQuery<T = Record<string, unknown>>({
     sql,
     params = [],
     first = false,
-  }: {
-    sql: string;
-    params?: any[];
-    first?: boolean;
-  }): Promise<any[] | any> {
+    transform,
+  }: SqlQueryOptions<T>): Promise<T[] | T | null> {
     // Ensure required properties are defined
     if (!this.client || !this.accountId || !this.databaseId) {
       throw new Error('Missing required REST API configuration');
@@ -189,17 +225,30 @@ export class D1Store extends MastraStorage {
       const response = await this.client.d1.database.query(this.databaseId, {
         account_id: this.accountId,
         sql: sql,
-        params: params,
+        params: params.map(p => (p === undefined || p === null ? null : String(p))) as string[],
       });
 
       const results = response.result || [];
 
       // If first=true, return only the first result
       if (first) {
-        return Array.isArray(results) && results.length > 0 ? results[0] : null;
+        const firstResult = Array.isArray(results) && results.length > 0 ? results[0] : null;
+        if (!firstResult) return null;
+
+        // Apply transformation if provided
+        if (transform && typeof transform === 'function') {
+          return transform(firstResult as Record<string, unknown>) as T;
+        }
+
+        return firstResult as T;
       }
 
-      return results;
+      // Apply transformation if provided
+      if (transform && typeof transform === 'function') {
+        return results.map(row => transform(row as Record<string, unknown>)) as T[];
+      }
+
+      return results as T[];
     } catch (restError: any) {
       this.logger.error('REST API error', { error: restError, sql });
       throw new Error(`D1 REST API error: ${restError.message}`);
@@ -211,24 +260,99 @@ export class D1Store extends MastraStorage {
    * @param options Query options including SQL, parameters, and whether to return only the first result
    * @returns Query results as an array or a single object if first=true
    */
-  private async executeQuery(options: { sql: string; params?: any[]; first?: boolean }): Promise<any[] | any> {
-    const { sql, params = [], first = false } = options;
+  private async executeQuery<T = Record<string, unknown>>(options: SqlQueryOptions<T>): Promise<T[] | T | null> {
+    const { sql, params = [], first = false, transform } = options;
 
     try {
       this.logger.debug('Executing SQL query', { sql, params, first });
 
       if (this.binding) {
         // Use Workers Binding API
-        return this.executeWorkersBindingQuery({ sql, params, first });
+        return this.executeWorkersBindingQuery<T>({ sql, params, first, transform });
       } else if (this.client && this.accountId && this.databaseId) {
         // Use REST API
-        return this.executeRestQuery({ sql, params, first });
+        return this.executeRestQuery<T>({ sql, params, first, transform });
       } else {
         throw new Error('No valid D1 configuration provided');
       }
     } catch (error: any) {
       this.logger.error('Error executing SQL query', { error, sql, params, first });
       throw new Error(`D1 query error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Begin a new transaction
+   * @returns A transaction object that can be used to execute queries within the transaction
+   */
+  async beginTransaction(): Promise<Transaction> {
+    try {
+      // Start the transaction
+      await this.executeQuery({ sql: 'BEGIN TRANSACTION' });
+
+      // Return a transaction object with methods to execute queries, commit, or rollback
+      return {
+        executeQuery: async <T = Record<string, unknown>>(options: SqlQueryOptions<T>): Promise<T[]> => {
+          const results = (await this.executeQuery<T>({
+            ...options,
+            first: false, // Ensure we get an array of results
+          })) as T[];
+
+          return results;
+        },
+        executeQuerySingle: async <T = Record<string, unknown>>(options: SqlQueryOptions<T>): Promise<T | null> => {
+          try {
+            // Use a type assertion to handle the potential undefined return type
+            const result = await this.executeQuery<T>({
+              ...options,
+              first: true, // Ensure we get a single result
+            });
+
+            // The result could be an array or a single item, ensure we return a single item or null
+            if (Array.isArray(result)) {
+              return result.length > 0 ? result[0] || null : null;
+            }
+            return result as T;
+          } catch (error) {
+            this.logger.error('Error executing query in transaction:', { error, sql: options.sql });
+            return null;
+          }
+        },
+        commit: async (): Promise<void> => {
+          await this.executeQuery({ sql: 'COMMIT' });
+          this.logger.debug('Transaction committed');
+        },
+        rollback: async (): Promise<void> => {
+          await this.executeQuery({ sql: 'ROLLBACK' });
+          this.logger.debug('Transaction rolled back');
+        },
+      };
+    } catch (error: any) {
+      this.logger.error('Error beginning transaction:', { error });
+      throw new Error(`Failed to begin transaction: ${error.message}`);
+    }
+  }
+
+  /**
+   * Execute a function within a transaction
+   * @param fn Function to execute within the transaction
+   * @returns The result of the function
+   */
+  async withTransaction<T>(fn: (transaction: Transaction) => Promise<T>): Promise<T> {
+    const transaction = await this.beginTransaction();
+
+    try {
+      // Execute the function with the transaction
+      const result = await fn(transaction);
+
+      // Commit the transaction if successful
+      await transaction.commit();
+
+      return result;
+    } catch (error) {
+      // Rollback the transaction on error
+      await transaction.rollback();
+      throw error;
     }
   }
 
@@ -433,7 +557,7 @@ export class D1Store extends MastraStorage {
       const sql = `SELECT * FROM ${fullTableName} WHERE resourceId = ?`;
       const results = await this.executeQuery({ sql, params: [resourceId] });
 
-      return results.map((thread: any) => ({
+      return (results && Array.isArray(results) ? results : []).map((thread: any) => ({
         ...thread,
         createdAt: this.ensureDate(thread.createdAt) as Date,
         updatedAt: this.ensureDate(thread.updatedAt) as Date,
@@ -625,13 +749,13 @@ export class D1Store extends MastraStorage {
               WHERE thread_id = ? AND id = ? 
               LIMIT 1
             `;
-            const positionResult = await this.executeQuery({
+            const positionResult = await this.executeQuery<{ created_at: string }>({
               sql: positionQuery,
               params: [threadId, item.id],
               first: true,
             });
 
-            if (positionResult) {
+            if (positionResult && 'created_at' in positionResult) {
               const messageTimestamp = positionResult.created_at;
 
               // Get previous messages if requested
@@ -642,31 +766,35 @@ export class D1Store extends MastraStorage {
                   ORDER BY created_at DESC 
                   LIMIT ?
                 `;
-                const prevResults = await this.executeQuery({
+                const prevResults = await this.executeQuery<{ id: string }>({
                   sql: prevQuery,
                   params: [threadId, messageTimestamp, item.withPreviousMessages],
                 });
 
-                for (const row of prevResults) {
-                  messageIdsToFetch.add(row.id);
+                if (prevResults && Array.isArray(prevResults)) {
+                  for (const row of prevResults) {
+                    messageIdsToFetch.add(row.id);
+                  }
                 }
-              }
 
-              // Get next messages if requested
-              if (item.withNextMessages && item.withNextMessages > 0) {
-                const nextQuery = `
+                // Get next messages if requested
+                if (item.withNextMessages && item.withNextMessages > 0) {
+                  const nextQuery = `
                   SELECT id FROM ${fullTableName} 
                   WHERE thread_id = ? AND created_at > ? 
                   ORDER BY created_at ASC 
                   LIMIT ?
                 `;
-                const nextResults = await this.executeQuery({
-                  sql: nextQuery,
-                  params: [threadId, messageTimestamp, item.withNextMessages],
-                });
+                  const nextResults = await this.executeQuery<{ id: string }>({
+                    sql: nextQuery,
+                    params: [threadId, messageTimestamp, item.withNextMessages],
+                  });
 
-                for (const row of nextResults) {
-                  messageIdsToFetch.add(row.id);
+                  if (nextResults && Array.isArray(nextResults)) {
+                    for (const row of nextResults) {
+                      messageIdsToFetch.add(row.id);
+                    }
+                  }
                 }
               }
             }
@@ -684,9 +812,15 @@ export class D1Store extends MastraStorage {
         `;
         const limitParams = [threadId, limit];
 
-        const latestResults = await this.executeQuery({ sql: limitQuery, params: limitParams });
-        for (const row of latestResults) {
-          messageIdsToFetch.add(row.id);
+        const latestResults = await this.executeQuery<{ id: string }>({
+          sql: limitQuery,
+          params: limitParams,
+        });
+
+        if (latestResults && Array.isArray(latestResults)) {
+          for (const row of latestResults) {
+            messageIdsToFetch.add(row.id);
+          }
         }
       }
 
@@ -715,23 +849,31 @@ export class D1Store extends MastraStorage {
         mainParams = [threadId, limit > 0 ? limit : 40];
       }
 
-      const results = await this.executeQuery({ sql: mainQuery, params: mainParams });
-
-      // Process messages
-      const messages = results.map((msg: any) => {
-        const processedMsg: Record<string, any> = {};
-
-        for (const [key, value] of Object.entries(msg)) {
-          processedMsg[key] = this.deserializeValue(value);
-        }
-
-        return processedMsg as unknown as T;
+      const results = await this.executeQuery<Record<string, unknown>>({
+        sql: mainQuery,
+        params: mainParams,
       });
 
+      // Process messages
+      const messages =
+        results && Array.isArray(results)
+          ? results.map((msg: Record<string, unknown>) => {
+              const processedMsg: Record<string, unknown> = {};
+
+              for (const [key, value] of Object.entries(msg)) {
+                processedMsg[key] = this.deserializeValue(value);
+              }
+
+              return processedMsg as unknown as T;
+            })
+          : [];
+
       // Sort by creation time to ensure proper order
-      messages.sort((a: any, b: any) => {
-        const timeA = new Date(a.created_at || a.createdAt).getTime();
-        const timeB = new Date(b.created_at || b.createdAt).getTime();
+      messages.sort((a, b) => {
+        const aRecord = a as Record<string, unknown>;
+        const bRecord = b as Record<string, unknown>;
+        const timeA = new Date((aRecord.created_at as string) || (aRecord.createdAt as string)).getTime();
+        const timeB = new Date((bRecord.created_at as string) || (bRecord.createdAt as string)).getTime();
         return timeA - timeB;
       });
 
@@ -789,16 +931,24 @@ export class D1Store extends MastraStorage {
     return d ? (d.snapshot as WorkflowRunState) : null;
   }
 
-  async batchInsert({ tableName, records }: { tableName: TABLE_NAMES; records: Record<string, any>[] }): Promise<void> {
+  /**
+   * Insert multiple records in a batch operation
+   * @param tableName The table to insert into
+   * @param records The records to insert
+   */
+  async batchInsert({
+    tableName,
+    records,
+  }: {
+    tableName: TABLE_NAMES;
+    records: Record<string, unknown>[];
+  }): Promise<void> {
     if (records.length === 0) return;
 
     const fullTableName = this.getTableName(tableName);
 
-    try {
-      // Use a transaction for better performance and atomicity
-      const beginTxn = `BEGIN TRANSACTION`;
-      await this.executeQuery({ sql: beginTxn });
-
+    // Use the withTransaction helper to manage the transaction
+    return this.withTransaction(async transaction => {
       try {
         // Process records in batches for better performance
         const batchSize = 50; // Adjust based on performance testing
@@ -806,16 +956,36 @@ export class D1Store extends MastraStorage {
         for (let i = 0; i < records.length; i += batchSize) {
           const batch = records.slice(i, i + batchSize);
 
-          // Process each record in the current batch
-          for (const record of batch) {
-            const now = new Date();
-            const recordToInsert = {
-              ...record,
-              createdAt: record.createdAt || now,
-              updatedAt: record.updatedAt || now,
-            };
+          // Prepare all records with timestamps
+          const now = new Date();
+          const recordsToInsert = batch.map(record => ({
+            ...record,
+            createdAt: record.createdAt || now,
+            updatedAt: record.updatedAt || now,
+          }));
 
-            await this.insert({ tableName, record: recordToInsert });
+          // For bulk insert, we need to determine the columns from the first record
+          if (recordsToInsert.length > 0) {
+            const firstRecord = recordsToInsert[0];
+            // Ensure firstRecord is not undefined before calling Object.keys
+            const columns = Object.keys(firstRecord || {});
+
+            // Create a bulk insert statement
+            // For D1, we'll use multiple single inserts in one transaction as a workaround
+            // since it doesn't support true bulk inserts like some other databases
+            for (const record of recordsToInsert) {
+              // Use type-safe approach to extract values
+              const values = columns.map(col => {
+                if (!record) return null;
+                // Safely access the record properties
+                const value = typeof col === 'string' ? record[col as keyof typeof record] : null;
+                return this.serializeValue(value);
+              });
+              const placeholders = columns.map(() => '?').join(', ');
+
+              const sql = `INSERT OR REPLACE INTO ${fullTableName} (${columns.join(', ')}) VALUES (${placeholders})`;
+              await transaction.executeQuery({ sql, params: values });
+            }
           }
 
           this.logger.debug(
@@ -823,21 +993,12 @@ export class D1Store extends MastraStorage {
           );
         }
 
-        // Commit the transaction if all inserts succeeded
-        const commitTxn = `COMMIT`;
-        await this.executeQuery({ sql: commitTxn });
-
         this.logger.debug(`Successfully batch inserted ${records.length} records into ${tableName}`);
       } catch (error) {
-        // Rollback on error
-        const rollbackTxn = `ROLLBACK`;
-        await this.executeQuery({ sql: rollbackTxn });
-        throw error;
+        this.logger.error(`Error batch inserting into ${tableName}:`, { error });
+        throw new Error(`Failed to batch insert into ${tableName}: ${error}`);
       }
-    } catch (error) {
-      this.logger.error(`Error batch inserting into ${tableName}:`, { error });
-      throw new Error(`Failed to batch insert into ${tableName}: ${error}`);
-    }
+    });
   }
 
   async getTraces({
@@ -852,7 +1013,7 @@ export class D1Store extends MastraStorage {
     page: number;
     perPage: number;
     attributes?: Record<string, string>;
-  }): Promise<any[]> {
+  }): Promise<Record<string, unknown>[]> {
     const fullTableName = this.getTableName(TABLE_TRACES);
 
     try {
@@ -879,15 +1040,17 @@ export class D1Store extends MastraStorage {
       sql += ` ORDER BY startTime DESC LIMIT ? OFFSET ?`;
       params.push(perPage, (page - 1) * perPage);
 
-      const results = await this.executeQuery({ sql, params });
+      const results = await this.executeQuery<Record<string, unknown>>({ sql, params });
 
-      return results.map((trace: any) => ({
-        ...trace,
-        attributes: this.deserializeValue(trace.attributes, 'jsonb') as Record<string, any>,
-        status: this.deserializeValue(trace.status, 'jsonb') as Record<string, any>,
-        events: this.deserializeValue(trace.events, 'jsonb') as Record<string, any>[],
-        links: this.deserializeValue(trace.links, 'jsonb') as Record<string, any>[],
-      }));
+      return results && Array.isArray(results)
+        ? results.map((trace: Record<string, unknown>) => ({
+            ...trace,
+            attributes: this.deserializeValue(trace.attributes, 'jsonb') as Record<string, unknown>,
+            status: this.deserializeValue(trace.status, 'jsonb') as Record<string, unknown>,
+            events: this.deserializeValue(trace.events, 'jsonb') as Record<string, unknown>[],
+            links: this.deserializeValue(trace.links, 'jsonb') as Record<string, unknown>[],
+          }))
+        : [];
     } catch (error) {
       this.logger.error('Error getting traces:', { error });
       return [];
@@ -908,26 +1071,28 @@ export class D1Store extends MastraStorage {
 
       sql += ` ORDER BY created_at DESC`;
 
-      const results = await this.executeQuery({ sql, params });
+      const results = await this.executeQuery<Record<string, unknown>>({ sql, params });
 
-      return results.map((row: any) => {
-        // Convert snake_case to camelCase for the response
-        const result = this.deserializeValue(row.result) as unknown as MetricResult;
-        const testInfo = row.test_info ? (this.deserializeValue(row.test_info) as unknown as TestInfo) : undefined;
+      return results && Array.isArray(results)
+        ? results.map((row: Record<string, unknown>) => {
+            // Convert snake_case to camelCase for the response
+            const result = this.deserializeValue(row.result) as unknown as MetricResult;
+            const testInfo = row.test_info ? (this.deserializeValue(row.test_info) as unknown as TestInfo) : undefined;
 
-        return {
-          input: row.input,
-          output: row.output,
-          result,
-          agentName: row.agent_name,
-          metricName: row.metric_name,
-          instructions: row.instructions,
-          runId: row.run_id,
-          globalRunId: row.global_run_id,
-          createdAt: row.created_at,
-          testInfo,
-        };
-      });
+            return {
+              input: String(row.input || ''),
+              output: String(row.output || ''),
+              result,
+              agentName: String(row.agent_name || ''),
+              metricName: String(row.metric_name || ''),
+              instructions: String(row.instructions || ''),
+              runId: String(row.run_id || ''),
+              globalRunId: String(row.global_run_id || ''),
+              createdAt: String(row.created_at || ''),
+              testInfo,
+            };
+          })
+        : [];
     } catch (error) {
       this.logger.error(`Error getting evals for agent ${agentName}:`, { error });
       return [];
