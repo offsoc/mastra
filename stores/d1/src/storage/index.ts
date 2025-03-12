@@ -12,18 +12,33 @@ import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { MetricResult, TestInfo } from '@mastra/core/eval';
 import Cloudflare from 'cloudflare';
 
+/**
+ * Configuration for D1 using the REST API
+ */
 export interface D1Config {
+  /** Cloudflare account ID */
   accountId: string;
+  /** Cloudflare API token with D1 access */
   apiToken: string;
+  /** D1 database ID */
   databaseId: string;
+  /** Optional prefix for table names */
   tablePrefix?: string;
 }
 
+/**
+ * Configuration for D1 using the Workers Binding API
+ */
 export interface D1WorkersConfig {
+  /** D1 database binding from Workers environment */
   binding: any; // D1Database binding from Workers
+  /** Optional prefix for table names */
   tablePrefix?: string;
 }
 
+/**
+ * Combined configuration type supporting both REST API and Workers Binding API
+ */
 export type D1StoreConfig = D1Config | D1WorkersConfig;
 
 export class D1Store extends MastraStorage {
@@ -32,23 +47,33 @@ export class D1Store extends MastraStorage {
   private databaseId?: string;
   private binding?: any; // D1Database binding
   private tablePrefix: string;
-  private useWorkersBinding: boolean;
 
+  /**
+   * Creates a new D1Store instance
+   * @param config Configuration for D1 access (either REST API or Workers Binding API)
+   */
   constructor(config: D1StoreConfig) {
     super({ name: 'D1' });
 
     this.tablePrefix = config.tablePrefix || '';
+
     // Determine which API to use based on provided config
     if ('binding' in config) {
+      if (!config.binding) {
+        throw new Error('D1 binding is required when using Workers Binding API');
+      }
       this.binding = config.binding;
-      this.useWorkersBinding = true;
+      this.logger.info('Using D1 Workers Binding API');
     } else {
+      if (!config.accountId || !config.databaseId || !config.apiToken) {
+        throw new Error('accountId, databaseId, and apiToken are required when using REST API');
+      }
       this.accountId = config.accountId;
       this.databaseId = config.databaseId;
       this.client = new Cloudflare({
         apiToken: config.apiToken,
       });
-      this.useWorkersBinding = false;
+      this.logger.info('Using D1 REST API');
     }
   }
 
@@ -72,12 +97,16 @@ export class D1Store extends MastraStorage {
         SELECT name FROM sqlite_master 
         WHERE type='index' AND name=? AND tbl_name=?
       `;
-      const indexExists = await this.executeQueryFirst(checkIndexQuery, [indexName, fullTableName]);
+      const indexExists = await this.executeQuery({
+        sql: checkIndexQuery,
+        params: [indexName, fullTableName],
+        first: true,
+      });
 
       if (!indexExists) {
         // Create the index if it doesn't exist
         const createIndexQuery = `CREATE ${indexType} INDEX IF NOT EXISTS ${indexName} ON ${fullTableName}(${columnName})`;
-        await this.executeQuery(createIndexQuery);
+        await this.executeQuery({ sql: createIndexQuery });
         this.logger.debug(`Created index ${indexName} on ${fullTableName}(${columnName})`);
       }
     } catch (error) {
@@ -86,60 +115,120 @@ export class D1Store extends MastraStorage {
     }
   }
 
-  // Execute a D1 query
-  private async executeQuery(sql: string, params: any[] = []): Promise<any[]> {
+  private async executeWorkersBindingQuery({
+    sql,
+    params = [],
+    first = false,
+  }: {
+    sql: string;
+    params?: any[];
+    first?: boolean;
+  }): Promise<any[] | any> {
+    // Ensure binding is defined
+    if (!this.binding) {
+      throw new Error('Workers binding is not configured');
+    }
+
     try {
-      this.logger.debug('Executing SQL query', { sql, params });
+      const statement = this.binding.prepare(sql);
 
-      let results: any[];
-
-      if (this.useWorkersBinding && this.binding) {
-        // Use Workers Binding API
-        const statement = this.binding.prepare(sql);
-
-        // Bind parameters if any
-        if (params.length > 0) {
-          const result = await statement.bind(...params).all();
-          results = result.results;
+      // Bind parameters if any
+      let result;
+      if (params.length > 0) {
+        if (first) {
+          result = await statement.bind(...params).first();
+          return result || null;
         } else {
-          const result = await statement.all();
-          results = result.results;
+          result = await statement.bind(...params).all();
+          const results = result.results || [];
+
+          // Include metadata for debugging if available
+          if (result.meta) {
+            this.logger.debug('Query metadata', { meta: result.meta });
+          }
+
+          return results;
         }
-      } else if (this.client && this.accountId && this.databaseId) {
-        // Use REST API
-        const response = await this.client.d1.database.query(this.databaseId, {
-          account_id: this.accountId,
-          sql: sql,
-          params: params,
-        });
-
-        results = response.result;
       } else {
-        throw new Error('No valid D1 configuration provided');
-      }
+        if (first) {
+          result = await statement.first();
+          return result || null;
+        } else {
+          result = await statement.all();
+          const results = result.results || [];
 
-      return results || [];
-    } catch (error: any) {
-      this.logger.error('Error executing SQL query', { error, sql, params });
-      throw new Error(`D1 query error: ${error.message}`);
+          // Include metadata for debugging if available
+          if (result.meta) {
+            this.logger.debug('Query metadata', { meta: result.meta });
+          }
+
+          return results;
+        }
+      }
+    } catch (workerError: any) {
+      this.logger.error('Workers Binding API error', { error: workerError, sql });
+      throw new Error(`D1 Workers API error: ${workerError.message}`);
     }
   }
 
-  // Execute a D1 query and return the first result
-  private async executeQueryFirst(sql: string, params: any[] = []): Promise<any> {
-    try {
-      const result = await this.executeQuery(sql, params);
+  private async executeRestQuery({
+    sql,
+    params = [],
+    first = false,
+  }: {
+    sql: string;
+    params?: any[];
+    first?: boolean;
+  }): Promise<any[] | any> {
+    // Ensure required properties are defined
+    if (!this.client || !this.accountId || !this.databaseId) {
+      throw new Error('Missing required REST API configuration');
+    }
 
-      // Check if the result is an array (for SELECT queries)
-      if (Array.isArray(result)) {
-        return result.length > 0 ? result[0] : null;
+    try {
+      const response = await this.client.d1.database.query(this.databaseId, {
+        account_id: this.accountId,
+        sql: sql,
+        params: params,
+      });
+
+      const results = response.result || [];
+
+      // If first=true, return only the first result
+      if (first) {
+        return Array.isArray(results) && results.length > 0 ? results[0] : null;
       }
 
-      // For non-SELECT queries, just return the result
-      return result;
-    } catch (error) {
-      this.logger.error('Error executing D1 query first:', { error, sql, params });
-      throw error; // Re-throw to be handled by the caller
+      return results;
+    } catch (restError: any) {
+      this.logger.error('REST API error', { error: restError, sql });
+      throw new Error(`D1 REST API error: ${restError.message}`);
+    }
+  }
+
+  /**
+   * Execute a SQL query against the D1 database
+   * @param options Query options including SQL, parameters, and whether to return only the first result
+   * @returns Query results as an array or a single object if first=true
+   */
+  private async executeQuery(options: { sql: string; params?: any[]; first?: boolean }): Promise<any[] | any> {
+    const { sql, params = [], first = false } = options;
+
+    try {
+      this.logger.debug('Executing SQL query', { sql, params, first });
+
+      if (this.binding) {
+        // Use Workers Binding API
+        return this.executeWorkersBindingQuery({ sql, params, first });
+      } else if (this.client && this.accountId && this.databaseId) {
+        // Use REST API
+        return this.executeRestQuery({ sql, params, first });
+      } else {
+        throw new Error('No valid D1 configuration provided');
+      }
+    } catch (error: any) {
+      this.logger.error('Error executing SQL query', { error, sql, params, first });
+      throw new Error(`D1 query error: ${error.message}`);
     }
   }
 
@@ -237,7 +326,7 @@ export class D1Store extends MastraStorage {
     const sql = `CREATE TABLE IF NOT EXISTS ${fullTableName} (${columns})`;
 
     try {
-      await this.executeQuery(sql);
+      await this.executeQuery({ sql });
       this.logger.debug(`Created table ${fullTableName}`);
     } catch (error) {
       this.logger.error(`Error creating table ${fullTableName}:`, { error });
@@ -249,7 +338,7 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(tableName);
 
     try {
-      await this.executeQuery(`DELETE FROM ${fullTableName}`);
+      await this.executeQuery({ sql: `DELETE FROM ${fullTableName}` });
       this.logger.debug(`Cleared table ${fullTableName}`);
     } catch (error) {
       this.logger.error(`Error clearing table ${fullTableName}:`, { error });
@@ -276,7 +365,7 @@ export class D1Store extends MastraStorage {
     const sql = `INSERT OR REPLACE INTO ${fullTableName} (${columns}) VALUES (${placeholders})`;
 
     try {
-      await this.executeQuery(sql, values);
+      await this.executeQuery({ sql, params: values });
     } catch (error) {
       this.logger.error(`Error inserting into ${fullTableName}:`, { error });
       throw new Error(`Failed to insert into ${fullTableName}: ${error}`);
@@ -295,7 +384,7 @@ export class D1Store extends MastraStorage {
     const sql = `SELECT * FROM ${fullTableName} WHERE ${whereConditions} LIMIT 1`;
 
     try {
-      const result = await this.executeQueryFirst(sql, values);
+      const result = await this.executeQuery({ sql, params: values, first: true });
 
       if (!result) return null;
 
@@ -342,7 +431,7 @@ export class D1Store extends MastraStorage {
 
     try {
       const sql = `SELECT * FROM ${fullTableName} WHERE resourceId = ?`;
-      const results = await this.executeQuery(sql, [resourceId]);
+      const results = await this.executeQuery({ sql, params: [resourceId] });
 
       return results.map((thread: any) => ({
         ...thread,
@@ -407,11 +496,11 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_THREADS);
 
     try {
-      await this.executeQuery(`DELETE FROM ${fullTableName} WHERE id = ?`, [threadId]);
+      await this.executeQuery({ sql: `DELETE FROM ${fullTableName} WHERE id = ?`, params: [threadId] });
 
       // Also delete associated messages
       const messagesTableName = this.getTableName(TABLE_MESSAGES);
-      await this.executeQuery(`DELETE FROM ${messagesTableName} WHERE thread_id = ?`, [threadId]);
+      await this.executeQuery({ sql: `DELETE FROM ${messagesTableName} WHERE thread_id = ?`, params: [threadId] });
     } catch (error) {
       this.logger.error(`Error deleting thread ${threadId}:`, { error });
       throw new Error(`Failed to delete thread ${threadId}: ${error}`);
@@ -536,7 +625,11 @@ export class D1Store extends MastraStorage {
               WHERE thread_id = ? AND id = ? 
               LIMIT 1
             `;
-            const positionResult = await this.executeQueryFirst(positionQuery, [threadId, item.id]);
+            const positionResult = await this.executeQuery({
+              sql: positionQuery,
+              params: [threadId, item.id],
+              first: true,
+            });
 
             if (positionResult) {
               const messageTimestamp = positionResult.created_at;
@@ -549,11 +642,10 @@ export class D1Store extends MastraStorage {
                   ORDER BY created_at DESC 
                   LIMIT ?
                 `;
-                const prevResults = await this.executeQuery(prevQuery, [
-                  threadId,
-                  messageTimestamp,
-                  item.withPreviousMessages,
-                ]);
+                const prevResults = await this.executeQuery({
+                  sql: prevQuery,
+                  params: [threadId, messageTimestamp, item.withPreviousMessages],
+                });
 
                 for (const row of prevResults) {
                   messageIdsToFetch.add(row.id);
@@ -568,11 +660,10 @@ export class D1Store extends MastraStorage {
                   ORDER BY created_at ASC 
                   LIMIT ?
                 `;
-                const nextResults = await this.executeQuery(nextQuery, [
-                  threadId,
-                  messageTimestamp,
-                  item.withNextMessages,
-                ]);
+                const nextResults = await this.executeQuery({
+                  sql: nextQuery,
+                  params: [threadId, messageTimestamp, item.withNextMessages],
+                });
 
                 for (const row of nextResults) {
                   messageIdsToFetch.add(row.id);
@@ -593,7 +684,7 @@ export class D1Store extends MastraStorage {
         `;
         const limitParams = [threadId, limit];
 
-        const latestResults = await this.executeQuery(limitQuery, limitParams);
+        const latestResults = await this.executeQuery({ sql: limitQuery, params: limitParams });
         for (const row of latestResults) {
           messageIdsToFetch.add(row.id);
         }
@@ -624,7 +715,7 @@ export class D1Store extends MastraStorage {
         mainParams = [threadId, limit > 0 ? limit : 40];
       }
 
-      const results = await this.executeQuery(mainQuery, mainParams);
+      const results = await this.executeQuery({ sql: mainQuery, params: mainParams });
 
       // Process messages
       const messages = results.map((msg: any) => {
@@ -706,7 +797,7 @@ export class D1Store extends MastraStorage {
     try {
       // Use a transaction for better performance and atomicity
       const beginTxn = `BEGIN TRANSACTION`;
-      await this.executeQuery(beginTxn);
+      await this.executeQuery({ sql: beginTxn });
 
       try {
         // Process records in batches for better performance
@@ -734,13 +825,13 @@ export class D1Store extends MastraStorage {
 
         // Commit the transaction if all inserts succeeded
         const commitTxn = `COMMIT`;
-        await this.executeQuery(commitTxn);
+        await this.executeQuery({ sql: commitTxn });
 
         this.logger.debug(`Successfully batch inserted ${records.length} records into ${tableName}`);
       } catch (error) {
         // Rollback on error
         const rollbackTxn = `ROLLBACK`;
-        await this.executeQuery(rollbackTxn);
+        await this.executeQuery({ sql: rollbackTxn });
         throw error;
       }
     } catch (error) {
@@ -788,7 +879,7 @@ export class D1Store extends MastraStorage {
       sql += ` ORDER BY startTime DESC LIMIT ? OFFSET ?`;
       params.push(perPage, (page - 1) * perPage);
 
-      const results = await this.executeQuery(sql, params);
+      const results = await this.executeQuery({ sql, params });
 
       return results.map((trace: any) => ({
         ...trace,
@@ -817,7 +908,7 @@ export class D1Store extends MastraStorage {
 
       sql += ` ORDER BY created_at DESC`;
 
-      const results = await this.executeQuery(sql, params);
+      const results = await this.executeQuery({ sql, params });
 
       return results.map((row: any) => {
         // Convert snake_case to camelCase for the response
@@ -843,7 +934,12 @@ export class D1Store extends MastraStorage {
     }
   }
 
+  /**
+   * Close the database connection
+   * No explicit cleanup needed for D1 in either REST or Workers Binding mode
+   */
   async close(): Promise<void> {
+    this.logger.debug('Closing D1 connection');
     // No explicit cleanup needed for D1
   }
 }
