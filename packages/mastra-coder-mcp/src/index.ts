@@ -257,13 +257,13 @@ const availablePaths = [
 async function findNearestDirectory(docPath: string): Promise<string> {
   // Split path into parts and try each parent directory
   const parts = docPath.split('/');
-  
+
   while (parts.length > 0) {
     const testPath = parts.join('/');
     try {
       const fullPath = path.join(docsBaseDir, testPath);
       const stats = await fs.stat(fullPath);
-      
+
       if (stats.isDirectory()) {
         const { dirs, files } = await listDirContents(fullPath);
         return [
@@ -282,20 +282,15 @@ async function findNearestDirectory(docPath: string): Promise<string> {
     }
     parts.pop();
   }
-  
+
   // If no parent directories found, return root listing
-  return [
-    `Path "${docPath}" not found.`,
-    'Here are all available paths:',
-    '',
-    availablePaths
-  ].join('\n');
+  return [`Path "${docPath}" not found.`, 'Here are all available paths:', '', availablePaths].join('\n');
 }
 
 server.addTool({
   name: 'mastraDocs',
   description:
-    'Get Mastra.ai documentation. Request one or more paths to explore the docs. Reference directories contain API documentation. Other directories contain guides and examples. The user doesn\'t know about files and directories. This is your internal knowledgebase the user can\'t see directly. If the user wants to know about a specific feature check general docs as well as reference docs for that feature. For example with evals check in evals/ and in reference/evals/. Provide code examples so the user understands. If you build a URL from the path, only paths ending in .mdx exist. Note that docs about MCP are currently in reference/tools/. Be concise with your answers. The user will ask for more info. IMPORTANT: If packages need to be installed provide the pnpm command to install them, for example if you see `import X from "@mastra/$PACKAGE_NAME"` in an example, show an install command.',
+    'Get Mastra.ai documentation. Request paths to explore the docs. References contain API docs. Other paths contain guides. The user doesn\'t know about files and directories. This is your internal knowledge the user can\'t read. If the user asks about a feature check general docs as well as reference docs for that feature. Ex: with evals check in evals/ and in reference/evals/. Provide code examples so the user understands. If you build a URL from the path, only paths ending in .mdx exist. Note that docs about MCP are currently in reference/tools/. IMPORTANT: Be concise with your answers. The user will ask for more info. If packages need to be installed, provide the pnpm command to install them. Ex. if you see `import { X } from "@mastra/$PACKAGE_NAME"` in an example, show an install command. Always install latest tag, not alpha unless requested. If you scaffold a new project it may be in a subdir',
 
   parameters: z.object({
     paths: z
