@@ -67,7 +67,7 @@ export class Workflow extends BaseResource {
     stepId: string;
     runId: string;
     context: Record<string, any>;
-  }): Promise<Record<string, any>> {
+  }): Promise<WorkflowRunResult> {
     return this.request(`/api/workflows/${this.workflowId}/resume?runId=${runId}`, {
       method: 'POST',
       body: {
@@ -123,7 +123,11 @@ export class Workflow extends BaseResource {
 
               //Check to see if all steps are completed and cancel reader
               const isWorkflowCompleted = parsedRecord?.activePaths?.every(
-                (path: any) => path.status === 'completed' || path.status === 'suspended' || path.status === 'failed',
+                (path: any) =>
+                  path.status === 'completed' ||
+                  path.status === 'suspended' ||
+                  path.status === 'failed' ||
+                  path.status === 'skipped',
               );
               if (isWorkflowCompleted) {
                 reader.cancel();

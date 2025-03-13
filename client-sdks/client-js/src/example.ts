@@ -47,28 +47,28 @@ import type { WorkflowRunResult } from './types';
 
 // Workflow
 
-(async () => {
-  const client = new MastraClient({
-    baseUrl: 'http://localhost:4111',
-  });
+// (async () => {
+//   const client = new MastraClient({
+//     baseUrl: 'http://localhost:4111',
+//   });
 
-  try {
-    const workflowId = 'myWorkflow';
-    const workflow = client.getWorkflow(workflowId);
+//   try {
+//     const workflowId = 'myWorkflow';
+//     const workflow = client.getWorkflow(workflowId);
 
-    const { runId } = await workflow.createRun();
+//     const { runId } = await workflow.createRun();
 
-    workflow.watch({ runId }, record => {
-      console.log(new Date().toTimeString(), record);
-    });
+//     workflow.watch({ runId }, record => {
+//       console.log(new Date().toTimeString(), record);
+//     });
 
-    await workflow.start({
-      runId,
-      triggerData: {
-        city: 'New York',
-      },
-    });
-  } catch (e) {
-    console.error('Workflow error:', e);
-  }
-})();
+//     await workflow.start({
+//       runId,
+//       triggerData: {
+//         city: 'New York',
+//       },
+//     });
+//   } catch (e) {
+//     console.error('Workflow error:', e);
+//   }
+// })();

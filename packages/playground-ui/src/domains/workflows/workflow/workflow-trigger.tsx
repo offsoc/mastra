@@ -62,14 +62,16 @@ export function WorkflowTrigger({
 
     const { stepId, runId, context } = step;
 
-    resumeWorkflow({
+    // TODO: fix this, result seems incomplete, missing active paths
+    const result = await resumeWorkflow({
       stepId,
       runId,
       context,
       workflowId,
     });
+    setResult(result);
 
-    watchWorkflow({ workflowId, runId });
+    // watchWorkflow({ workflowId, runId });
   };
 
   const watchResultToUse = result ?? watchResult;

@@ -65,10 +65,10 @@ try{
   // Create a workflow run
   const {runId} = workflow.createRun()
 
-  // Watch workflow run
+  // Watch workflow run without awaiting
      workflow.watch({runId},(record)=>{
        // Every new record is the latest transition state of the workflow run
-       
+
         console.log({
           activePaths: record.activePaths,
           context: record.context,
