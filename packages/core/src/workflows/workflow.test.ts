@@ -1676,7 +1676,7 @@ describe('Workflow', async () => {
       });
     });
 
-    it.only('should unsubscribe from transitions when unwatch is called', async () => {
+    it('should unsubscribe from transitions when unwatch is called', async () => {
       const step1Action = vi.fn<any>().mockResolvedValue({ result: 'success1' });
       const step2Action = vi.fn<any>().mockResolvedValue({ result: 'success2' });
 
@@ -1763,6 +1763,15 @@ describe('Workflow', async () => {
       if (fs.existsSync(pathToDb)) {
         fs.rmSync(pathToDb);
       }
+    });
+    it('should return the correct runId', async () => {
+      const workflow = new Workflow({ name: 'test-workflow' });
+      const run = workflow.createRun();
+      const run2 = workflow.createRun({ runId: run.runId });
+
+      expect(run.runId).toBeDefined();
+      expect(run2.runId).toBeDefined();
+      expect(run.runId).toBe(run2.runId);
     });
     it('should handle basic suspend and resume flow', async () => {
       const getUserInputAction = vi.fn().mockResolvedValue({ userInput: 'test input' });
@@ -1861,7 +1870,7 @@ describe('Workflow', async () => {
           newCtx.steps.getUserInput.output = {
             userInput: 'test input for resumption',
           };
-          resolveWorkflowSuspended({ runId: run.runId, stepId: suspended.stepId, context: newCtx });
+          resolveWorkflowSuspended({ stepId: suspended.stepId, context: newCtx });
         }
       });
 
@@ -1871,8 +1880,7 @@ describe('Workflow', async () => {
 
       // Wait for the workflow to be ready to resume
       const resumeData = await workflowSuspended;
-      const resumeWf = mastra.getWorkflow('test-workflow');
-      const resumeResult = await resumeWf.resume(resumeData as any);
+      const resumeResult = await run.resume(resumeData as any);
 
       if (!resumeResult) {
         throw new Error('Resume failed to return a result');
@@ -1985,8 +1993,7 @@ describe('Workflow', async () => {
               hasResumed = true;
 
               try {
-                const resumed = await wf.resume({
-                  runId: run.runId,
+                const resumed = await run.resume({
                   stepId: suspended.stepId,
                   context: newCtx,
                 });
@@ -2138,8 +2145,7 @@ describe('Workflow', async () => {
               hasResumed = true;
 
               try {
-                const resumed = await wf.resume({
-                  runId: run.runId,
+                const resumed = await run.resume({
                   stepId: suspended.stepId,
                   context: newCtx,
                 });
@@ -2149,8 +2155,7 @@ describe('Workflow', async () => {
               }
             }
           } else if (suspended?.stepId === 'improveResponse') {
-            const resumed = wf.resume({
-              runId: run.runId,
+            const resumed = run.resume({
               stepId: suspended.stepId,
               context: {
                 ...data.context,
@@ -2294,7 +2299,7 @@ describe('Workflow', async () => {
       expect(initialResult.results.promptAgent.status).toBe('suspended');
       expect(promptAgentAction).toHaveBeenCalledTimes(1);
 
-      const firstResumeResult = await wf.resume({ runId: run.runId, stepId: 'promptAgent', context: newCtx });
+      const firstResumeResult = await run.resume({ stepId: 'promptAgent', context: newCtx });
 
       if (!firstResumeResult) {
         throw new Error('Resume failed to return a result');
@@ -2315,7 +2320,7 @@ describe('Workflow', async () => {
         improveResponse: { status: 'suspended' },
       });
 
-      const secondResumeResult = await wf.resume({ runId: run.runId, stepId: 'improveResponse', context: newCtx });
+      const secondResumeResult = await run.resume({ stepId: 'improveResponse', context: newCtx });
       if (!secondResumeResult) {
         throw new Error('Resume failed to return a result');
       }
@@ -2374,7 +2379,15 @@ describe('Workflow', async () => {
       });
 
       const wf = mastra.getWorkflow('test-workflow');
-      const run = wf.createRun();
+      const run = wf.createRun({
+        events: {
+          testev: {
+            schema: z.object({
+              catName: z.string(),
+            }),
+          },
+        },
+      });
 
       const initialResult = await run.start({ triggerData: { input: 'test' } });
       expect(initialResult.activePaths.size).toBe(1);
@@ -2384,7 +2397,7 @@ describe('Workflow', async () => {
       });
       expect(getUserInputAction).toHaveBeenCalledTimes(1);
 
-      const firstResumeResult = await wf.resumeWithEvent(run.runId, 'testev', {
+      const firstResumeResult = await run.resumeWithEvent('testev', {
         catName: 'test input for resumption',
       });
 

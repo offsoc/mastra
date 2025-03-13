@@ -35,7 +35,7 @@ export class Workflow<
   #retryConfig?: RetryConfig;
   #mastra?: Mastra;
   #runs: Map<string, WorkflowInstance<TSteps, TTriggerSchema>> = new Map();
-
+  #onStepTransition: Set<(state: WorkflowRunState) => void | Promise<void>> = new Set();
   // registers stepIds on `after` calls
   #afterStepStack: string[] = [];
   #lastStepStack: string[] = [];
@@ -441,26 +441,37 @@ export class Workflow<
    * @throws Error if trigger schema validation fails
    */
 
-  createRun(): WorkflowResultReturn<TTriggerSchema, TSteps> {
+  createRun({
+    runId,
+    events,
+  }: { runId?: string; events?: Record<string, { schema: z.ZodObject<any> }> } = {}): WorkflowResultReturn<
+    TTriggerSchema,
+    TSteps
+  > {
     const run = new WorkflowInstance<TSteps, TTriggerSchema>({
       logger: this.logger,
       name: this.name,
       mastra: this.#mastra,
       retryConfig: this.#retryConfig,
-
+      loadWorkflowSnapshot: this.#loadWorkflowSnapshot.bind(this),
+      makeStepDef: this.#makeStepDef.bind(this),
       steps: this.#steps,
+      runId,
       stepGraph: this.#stepGraph,
       stepSubscriberGraph: this.#stepSubscriberGraph,
-
+      onStepTransition: this.#onStepTransition,
       onFinish: () => {
         this.#runs.delete(run.runId);
       },
+      events,
     });
     this.#runs.set(run.runId, run);
     return {
       start: run.start.bind(run),
       runId: run.runId,
       watch: run.watch.bind(run),
+      resume: run.resume.bind(run),
+      resumeWithEvent: run.resumeWithEvent.bind(run),
     };
   }
 
@@ -758,11 +769,12 @@ export class Workflow<
         name: this.name,
         mastra: this.#mastra,
         retryConfig: this.#retryConfig,
-
         steps: this.#steps,
         stepGraph: this.#stepGraph,
         stepSubscriberGraph: this.#stepSubscriberGraph,
-
+        onStepTransition: this.#onStepTransition,
+        makeStepDef: this.#makeStepDef.bind(this),
+        loadWorkflowSnapshot: this.#loadWorkflowSnapshot.bind(this),
         runId,
         onFinish: () => {
           this.#runs.delete(run.runId);
@@ -778,7 +790,17 @@ export class Workflow<
     });
   }
 
+  watch(onTransition: (state: WorkflowRunState) => void): () => void {
+    this.logger.warn(`Please use 'watch' on the 'createRun' call instead, watch is deprecated`);
+    this.#onStepTransition.add(onTransition);
+
+    return () => {
+      this.#onStepTransition.delete(onTransition);
+    };
+  }
+
   async resumeWithEvent(runId: string, eventName: string, data: any) {
+    this.logger.warn(`Please use 'resumeWithEvent' on the 'createRun' call instead, resumeWithEvent is deprecated`);
     const event = this.events?.[eventName];
     if (!event) {
       throw new Error(`Event ${eventName} not found`);
