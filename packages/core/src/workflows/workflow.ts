@@ -71,7 +71,7 @@ export class Workflow<
     TStep extends StepAction<any, any, any, any>,
     CondStep extends StepVariableType<any, any, any, any>,
     VarStep extends StepVariableType<any, any, any, any>,
-  >(step: TStep | Workflow<any, any>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
+  >(next: TStep | Workflow<TSteps, TTriggerSchema>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
     const { variables = {} } = config || {};
 
     const requiredData: Record<string, any> = {};
@@ -83,12 +83,11 @@ export class Workflow<
       }
     }
 
-    const stepKey = this.#makeStepKey(step);
+    const step: StepAction<any, any, any, any> = isWorkflow(next)
+      ? workflowToStep(next)
+      : (next as StepAction<any, any, any, any>);
 
-    if (isWorkflow(step)) {
-      const wf = step;
-      step = workflowToStep(wf) as TStep;
-    }
+    const stepKey = this.#makeStepKey(step);
 
     const graphEntry: StepNode = {
       step,
@@ -123,12 +122,8 @@ export class Workflow<
     return this;
   }
 
-  #makeStepKey(step: Step<any, any, any> | Workflow<any, any>) {
+  #makeStepKey(step: Step<any, any, any>) {
     // return `${step.id}${this.#delimiter}${Object.keys(this.steps2).length}`;
-    if (isWorkflow(step)) {
-      return `${step.name}`;
-    }
-
     return `${step.id}`;
   }
 
@@ -136,7 +131,7 @@ export class Workflow<
     TStep extends StepAction<any, any, any, any>,
     CondStep extends StepVariableType<any, any, any, any>,
     VarStep extends StepVariableType<any, any, any, any>,
-  >(step: TStep | Workflow<any, any>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
+  >(next: TStep | Workflow<any, any>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
     const { variables = {} } = config || {};
 
     const requiredData: Record<string, any> = {};
@@ -149,12 +144,12 @@ export class Workflow<
     }
 
     const lastStepKey = this.#lastStepStack[this.#lastStepStack.length - 1];
-    const stepKey = this.#makeStepKey(step);
 
-    if (isWorkflow(step)) {
-      const wf = step;
-      step = workflowToStep(wf) as TStep;
-    }
+    const step: StepAction<any, any, any, any> = isWorkflow(next)
+      ? workflowToStep(next)
+      : (next as StepAction<any, any, any, any>);
+
+    const stepKey = this.#makeStepKey(step);
 
     const graphEntry: StepNode = {
       step,

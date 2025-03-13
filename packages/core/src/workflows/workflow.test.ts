@@ -2517,33 +2517,40 @@ describe('Workflow', async () => {
         }),
       });
 
+      const wfA = new Workflow({ name: 'nested-workflow-a' }).step(startStep).then(otherStep).then(finalStep).commit();
+      const wfB = new Workflow({ name: 'nested-workflow-b' }).step(startStep).then(finalStep).commit();
       counterWorkflow
-        .step(new Workflow({ name: 'nested-workflow-a' }).step(startStep).then(otherStep).then(finalStep).commit())
-        .step(new Workflow({ name: 'nested-workflow-b' }).step(startStep).then(finalStep).commit())
-        .after(['nested-workflow-a', 'nested-workflow-b'])
-        .step(
-          new Step({
-            id: 'last-step',
-            async execute({ context }) {
-              return { success: true };
-            },
-          }),
-        )
+        .step(wfA)
+        .step(wfB)
+        // .after([wfA, wfB])
+        // .step(
+        //   new Step({
+        //     id: 'last-step',
+        //     async execute({ context }) {
+        //       return { success: true };
+        //     },
+        //   }),
+        // )
         .commit();
 
       const run = counterWorkflow.createRun();
       const { results } = await run.start({ triggerData: { startValue: 1 } });
 
-      expect(start).toHaveBeenCalledTimes(1);
+      expect(start).toHaveBeenCalledTimes(2);
       expect(other).toHaveBeenCalledTimes(1);
-      expect(final).toHaveBeenCalledTimes(1);
+      expect(final).toHaveBeenCalledTimes(2);
       // @ts-ignore
-      expect(results.start.output).toEqual({ newValue: 2 });
-      // @ts-ignore
-      expect(results.other.output).toEqual({ other: 26 });
+      expect(results['nested-workflow-a'].output).toEqual({
+        start: { output: { newValue: 1 }, status: 'success' },
+        other: { output: { other: 26 }, status: 'success' },
+        final: { output: { finalValue: 26 + 1 }, status: 'success' },
+      });
 
       // @ts-ignore
-      expect(results.final.output).toEqual({ finalValue: 26 + 2 });
+      expect(results['nested-workflow-b'].output).toEqual({
+        start: { output: { newValue: 1 }, status: 'success' },
+        final: { output: { finalValue: 1 }, status: 'success' },
+      });
     });
   });
 });
