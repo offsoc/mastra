@@ -1,9 +1,24 @@
 import { copyRaw } from './copy-raw';
 import { organizeDocs } from './organize';
+import { prepareCodeExamples } from './code-examples';
+import { preparePackageChanges } from './package-changes';
 
 async function main() {
+  console.log('Preparing documentation...');
+  
   await copyRaw();
   await organizeDocs();
+  
+  console.log('Preparing code examples...');
+  await prepareCodeExamples();
+  
+  console.log('Preparing package changelogs...');
+  await preparePackageChanges();
+  
+  console.log('Documentation preparation complete!');
 }
 
-void main();
+main().catch(error => {
+  console.error('Error preparing documentation:', error);
+  process.exit(1);
+});
