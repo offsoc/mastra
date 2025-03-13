@@ -55,34 +55,35 @@ const result = await workflow.resume({
 
 ### Watch Workflow
 
-Watch workflow transitions in real-time using an async iterator:
+Watch workflow transitions
 
 ```typescript
 try{
   // Get workflow instance
   const workflow = client.getWorkflow("workflow-id");
 
-  // Start a new workflow run
-  const {runId} = await workflow.startRun({
-    input: {
-      param1: "value1",
-      param2: "value2",
-    },
-  });
+  // Create a workflow run
+  const {runId} = workflow.createRun()
 
-  // Watch for workflow run
-  const workflowWatch = workflow.watch({runId})
+  // Watch workflow run
+     workflow.watch({runId},(record)=>{
+       // Every new record is the latest transition state of the workflow run
+       
+        console.log({
+          activePaths: record.activePaths,
+          context: record.context,
+          timestamp: record.timestamp,
+          runId: record.runId
+        });
+     });
 
-  // Watch for workflow transitions
-  for await (const record of workflowWatch) {
-    // Every new record is the latest transition state of the workflow run
-    console.log({
-      activePaths: record.activePaths,
-      context: record.context,
-      timestamp: record.timestamp,
-      runId: record.runId
+  // Start workflow run
+    await workflow.start({
+      runId,
+      triggerData: {
+        city: 'New York',
+      },
     });
-  }
 
 }catch(e){
   console.error(e);

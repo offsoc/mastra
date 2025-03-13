@@ -66,21 +66,6 @@ export async function getWorkflowByIdHandler(c: Context) {
   }
 }
 
-export async function startWorkflowRunHandler(c: Context) {
-  const mastra: Mastra = c.get('mastra');
-  const workflowId = c.req.param('workflowId');
-  const workflow = mastra.getWorkflow(workflowId);
-  const body = await c.req.json();
-
-  const { start, runId } = workflow.createRun();
-
-  start({
-    triggerData: body,
-  });
-
-  return c.json({ runId });
-}
-
 export async function executeWorkflowHandler(c: Context) {
   try {
     const mastra: Mastra = c.get('mastra');
@@ -99,22 +84,72 @@ export async function executeWorkflowHandler(c: Context) {
   }
 }
 
+export async function createRunHandler(c: Context) {
+  try {
+    const mastra: Mastra = c.get('mastra');
+    const workflowId = c.req.param('workflowId');
+    const workflow = mastra.getWorkflow(workflowId);
+
+    const { runId } = workflow.createRun();
+
+    return c.json({ runId });
+  } catch (e) {
+    return handleError(e, 'Error creating run');
+  }
+}
+
+export async function startWorkflowRunHandler(c: Context) {
+  try {
+    const mastra: Mastra = c.get('mastra');
+    const workflowId = c.req.param('workflowId');
+    const workflow = mastra.getWorkflow(workflowId);
+    const body = await c.req.json();
+    const runId = c.req.query('runId');
+
+    if (!runId) {
+      throw new HTTPException(400, { message: 'runId required to start run' });
+    }
+
+    const run = workflow.getRun(runId);
+
+    if (!run) {
+      throw new HTTPException(404, { message: 'Workflow run not found' });
+    }
+
+    run.start({
+      triggerData: body,
+    });
+
+    return c.json({ message: 'Workflow run started' });
+  } catch (e) {
+    return handleError(e, 'Error starting workflow run');
+  }
+}
+
 export async function watchWorkflowHandler(c: Context) {
   try {
     const mastra: Mastra = c.get('mastra');
     const logger = mastra.getLogger();
     const workflowId = c.req.param('workflowId');
     const workflow = mastra.getWorkflow(workflowId);
-    const queryRunId = c.req.query('runId');
+    const runId = c.req.query('runId');
+
+    if (!runId) {
+      throw new HTTPException(400, { message: 'runId required to watch workflow' });
+    }
+
+    const run = workflow.getRun(runId);
+
+    if (!run) {
+      throw new HTTPException(404, { message: 'Workflow run not found' });
+    }
 
     return streamText(
       c,
       async stream => {
         return new Promise((_resolve, _reject) => {
-          let unwatch: () => void = workflow.watch(({ activePaths, context, runId, timestamp, suspendedSteps }) => {
-            if (!queryRunId || runId === queryRunId) {
-              void stream.write(JSON.stringify({ activePaths, context, runId, timestamp, suspendedSteps }) + '\x1E');
-            }
+          let unwatch: () => void = run.watch(({ activePaths, context, runId, timestamp, suspendedSteps }) => {
+            void stream.write(JSON.stringify({ activePaths, context, runId, timestamp, suspendedSteps }) + '\x1E');
           });
 
           stream.onAbort(() => {

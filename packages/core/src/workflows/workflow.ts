@@ -465,6 +465,15 @@ export class Workflow<
   }
 
   /**
+   * Gets a workflow run instance by ID
+   * @param runId - ID of the run to retrieve
+   * @returns The workflow run instance if found, undefined otherwise
+   */
+  getRun(runId: string) {
+    return this.#runs.get(runId);
+  }
+
+  /**
    * Rebuilds the machine with the current steps configuration and validates the workflow
    *
    * This is the last step of a workflow builder method chain

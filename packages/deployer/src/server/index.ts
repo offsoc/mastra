@@ -55,6 +55,7 @@ import {
   getWorkflowsHandler,
   resumeWorkflowHandler,
   watchWorkflowHandler,
+  createRunHandler,
 } from './handlers/workflows.js';
 import { html } from './welcome.js';
 
@@ -1062,9 +1063,9 @@ export async function createHonoServer(
   );
 
   app.post(
-    '/api/workflows/:workflowId/startRun',
+    '/api/workflows/:workflowId/createRun',
     describeRoute({
-      description: 'Create and start a new workflow run',
+      description: 'Create a new workflow run',
       tags: ['workflows'],
       parameters: [
         {
@@ -1076,7 +1077,35 @@ export async function createHonoServer(
       ],
       responses: {
         200: {
-          description: 'New workflow run created and started',
+          description: 'New workflow run created',
+        },
+      },
+    }),
+    createRunHandler,
+  );
+
+  app.post(
+    '/api/workflows/:workflowId/start',
+    describeRoute({
+      description: 'Create and start a new workflow run',
+      tags: ['workflows'],
+      parameters: [
+        {
+          name: 'workflowId',
+          in: 'path',
+          required: true,
+          schema: { type: 'string' },
+        },
+        {
+          name: 'runId',
+          in: 'query',
+          required: true,
+          schema: { type: 'string' },
+        },
+      ],
+      responses: {
+        200: {
+          description: 'Workflow run started',
         },
         404: {
           description: 'Workflow not found',

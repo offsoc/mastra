@@ -36,7 +36,7 @@ export function WorkflowTrigger({
 }) {
   const { result, setResult, payload, setPayload } = useContext(WorkflowRunContext);
   const { isLoading, workflow } = useWorkflow(workflowId, baseUrl);
-  const { createWorkflowRun } = useExecuteWorkflow(baseUrl);
+  const { createWorkflowRun, startWorkflowRun } = useExecuteWorkflow(baseUrl);
   const { watchWorkflow, watchResult, isWatchingWorkflow } = useWatchWorkflow(baseUrl);
   const { resumeWorkflow, isResumingWorkflow } = useResumeWorkflow(baseUrl);
   const [suspendedSteps, setSuspendedSteps] = useState<SuspendedStep[]>([]);
@@ -49,9 +49,12 @@ export function WorkflowTrigger({
     setResult(null);
 
     const { runId } = await createWorkflowRun({ workflowId, input: data });
+
     setRunId?.(runId);
 
     watchWorkflow({ workflowId, runId });
+
+    startWorkflowRun({ workflowId, runId, input: data });
   };
 
   const handleResumeWorkflow = async (step: SuspendedStep & { context: any }) => {

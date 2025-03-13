@@ -31,14 +31,24 @@ export class Workflow extends BaseResource {
   }
 
   /**
-   * Creates a new workflow run instance and starts it
-   * @param params - Parameters required for the workflow run
+   * Creates a new workflow run
    * @returns Promise containing the generated run ID
    */
-  startRun(params: Record<string, any>): Promise<{ runId: string }> {
-    return this.request(`/api/workflows/${this.workflowId}/startRun`, {
+  createRun(): Promise<{ runId: string }> {
+    return this.request(`/api/workflows/${this.workflowId}/createRun`, {
       method: 'POST',
-      body: params,
+    });
+  }
+
+  /**
+   * Creates a new workflow run instance and starts it
+   * @param params - Object containing the runId and triggerData
+   * @returns Promise containing the generated run ID
+   */
+  start(params: { runId: string; triggerData: Record<string, any> }): Promise<{ message: string }> {
+    return this.request(`/api/workflows/${this.workflowId}/start?runId=${params.runId}`, {
+      method: 'POST',
+      body: params?.triggerData,
     });
   }
 
@@ -135,7 +145,7 @@ export class Workflow extends BaseResource {
    * @param runId - Optional run ID to filter the watch stream
    * @returns AsyncGenerator that yields parsed records from the workflow watch stream
    */
-  async *watch({ runId }: { runId?: string }) {
+  async watch({ runId }: { runId?: string }, onRecord: (record: WorkflowRunResult) => void) {
     const response: Response = await this.request(`/api/workflows/${this.workflowId}/watch?runId=${runId}`, {
       stream: true,
     });
@@ -148,6 +158,8 @@ export class Workflow extends BaseResource {
       throw new Error('Response body is null');
     }
 
-    yield* this.streamProcessor(response.body);
+    for await (const record of this.streamProcessor(response.body)) {
+      onRecord(record);
+    }
   }
 }
