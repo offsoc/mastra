@@ -153,6 +153,58 @@ export class SqlBuilder {
     return this;
   }
 
+  /**
+   * Check if an index exists in the database
+   * @param indexName The name of the index to check
+   * @param tableName The table the index is on
+   * @returns The builder instance
+   */
+  checkIndexExists(indexName: string, tableName: string): SqlBuilder {
+    this.sql = `SELECT name FROM sqlite_master WHERE type='index' AND name=? AND tbl_name=?`;
+    this.params.push(indexName, tableName);
+    return this;
+  }
+
+  /**
+   * Create an index if it doesn't exist
+   * @param indexName The name of the index to create
+   * @param tableName The table to create the index on
+   * @param columnName The column to index
+   * @param indexType Optional index type (e.g., 'UNIQUE')
+   * @returns The builder instance
+   */
+  createIndex(indexName: string, tableName: string, columnName: string, indexType: string = ''): SqlBuilder {
+    this.sql = `CREATE ${indexType} INDEX IF NOT EXISTS ${indexName} ON ${tableName}(${columnName})`;
+    return this;
+  }
+
+  /**
+   * Begin a transaction
+   * @returns The builder instance
+   */
+  beginTransaction(): SqlBuilder {
+    this.sql = 'BEGIN TRANSACTION';
+    return this;
+  }
+
+  /**
+   * Commit a transaction
+   * @returns The builder instance
+   */
+  commitTransaction(): SqlBuilder {
+    this.sql = 'COMMIT';
+    return this;
+  }
+
+  /**
+   * Rollback a transaction
+   * @returns The builder instance
+   */
+  rollbackTransaction(): SqlBuilder {
+    this.sql = 'ROLLBACK';
+    return this;
+  }
+
   // Raw SQL with params
   raw(sql: string, ...params: SqlParam[]): SqlBuilder {
     this.sql = sql;

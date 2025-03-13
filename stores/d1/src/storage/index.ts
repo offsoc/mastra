@@ -131,20 +131,21 @@ export class D1Store extends MastraStorage {
 
     try {
       // Check if index exists
-      const checkIndexQuery = `
-        SELECT name FROM sqlite_master 
-        WHERE type='index' AND name=? AND tbl_name=?
-      `;
+      const checkQuery = createSqlBuilder().checkIndexExists(indexName, fullTableName);
+      const { sql: checkSql, params: checkParams } = checkQuery.build();
+
       const indexExists = await this.executeQuery({
-        sql: checkIndexQuery,
-        params: [indexName, fullTableName],
+        sql: checkSql,
+        params: checkParams,
         first: true,
       });
 
       if (!indexExists) {
         // Create the index if it doesn't exist
-        const createIndexQuery = `CREATE ${indexType} INDEX IF NOT EXISTS ${indexName} ON ${fullTableName}(${columnName})`;
-        await this.executeQuery({ sql: createIndexQuery });
+        const createQuery = createSqlBuilder().createIndex(indexName, fullTableName, columnName, indexType);
+        const { sql: createSql, params: createParams } = createQuery.build();
+
+        await this.executeQuery({ sql: createSql, params: createParams });
         this.logger.debug(`Created index ${indexName} on ${fullTableName}(${columnName})`);
       }
     } catch (error) {
@@ -308,8 +309,9 @@ export class D1Store extends MastraStorage {
    */
   async beginTransaction(): Promise<Transaction> {
     try {
-      // Start the transaction
-      await this.executeQuery({ sql: 'BEGIN TRANSACTION' });
+      const beginQuery = createSqlBuilder().beginTransaction();
+      const { sql: beginSql, params: beginParams } = beginQuery.build();
+      await this.executeQuery({ sql: beginSql, params: beginParams });
 
       // Return a transaction object with methods to execute queries, commit, or rollback
       return {
@@ -334,11 +336,15 @@ export class D1Store extends MastraStorage {
           return result;
         },
         commit: async (): Promise<void> => {
-          await this.executeQuery({ sql: 'COMMIT' });
+          const commitQuery = createSqlBuilder().commitTransaction();
+          const { sql: commitSql, params: commitParams } = commitQuery.build();
+          await this.executeQuery({ sql: commitSql, params: commitParams });
           this.logger.debug('Transaction committed');
         },
         rollback: async (): Promise<void> => {
-          await this.executeQuery({ sql: 'ROLLBACK' });
+          const rollbackQuery = createSqlBuilder().rollbackTransaction();
+          const { sql: rollbackSql, params: rollbackParams } = rollbackQuery.build();
+          await this.executeQuery({ sql: rollbackSql, params: rollbackParams });
           this.logger.debug('Transaction rolled back');
         },
       };
@@ -459,7 +465,6 @@ export class D1Store extends MastraStorage {
       return `${colName} ${type} ${nullable} ${primaryKey}`.trim();
     });
 
-    // Use SQL builder for consistent query construction
     const query = createSqlBuilder().createTable(fullTableName, columnDefinitions);
 
     const { sql, params } = query.build();
@@ -477,7 +482,6 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(tableName);
 
     try {
-      // Use SQL builder for consistent query construction
       const query = createSqlBuilder().delete(fullTableName);
 
       const { sql, params } = query.build();
@@ -502,7 +506,7 @@ export class D1Store extends MastraStorage {
     const columns = Object.keys(processedRecord);
     const values = Object.values(processedRecord);
 
-    // Build the INSERT query using SQL builder
+    // Build the INSERT query
     const query = createSqlBuilder().insert(fullTableName, columns, values);
 
     const { sql, params } = query.build();
@@ -518,7 +522,6 @@ export class D1Store extends MastraStorage {
   async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
     const fullTableName = this.getTableName(tableName);
 
-    // Build query using SQL builder
     const query = createSqlBuilder().select('*').from(fullTableName);
 
     // Add WHERE conditions for each key
@@ -650,13 +653,13 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_THREADS);
 
     try {
-      // Delete the thread using SQL builder
+      // Delete the thread
       const deleteThreadQuery = createSqlBuilder().delete(fullTableName).where('id = ?', threadId);
 
       const { sql: threadSql, params: threadParams } = deleteThreadQuery.build();
       await this.executeQuery({ sql: threadSql, params: threadParams });
 
-      // Also delete associated messages using SQL builder
+      // Also delete associated messages
       const messagesTableName = this.getTableName(TABLE_MESSAGES);
       const deleteMessagesQuery = createSqlBuilder().delete(messagesTableName).where('thread_id = ?', threadId);
 
@@ -873,7 +876,6 @@ export class D1Store extends MastraStorage {
         }
       }
 
-      // Now fetch all the messages we need using SQL builder
       let query = createSqlBuilder().select('*').from(fullTableName);
 
       if (messageIdsToFetch.size > 0) {
@@ -1020,7 +1022,6 @@ export class D1Store extends MastraStorage {
                 return this.serializeValue(value);
               });
 
-              // Use SQL builder for consistent query construction
               const query = createSqlBuilder().insert(fullTableName, columns, values);
 
               const { sql, params } = query.build();
@@ -1101,7 +1102,6 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_EVALS);
 
     try {
-      // Build the query using SQL builder
       const query = createSqlBuilder().select('*').from(fullTableName).where('agent_name = ?', agentName);
 
       if (type) {
