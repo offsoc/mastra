@@ -12,6 +12,8 @@ import type { WorkflowRunState } from '@mastra/core/workflows';
 import Cloudflare from 'cloudflare';
 import type { D1Database } from '@cloudflare/workers-types';
 
+type SqlParam = string | number | boolean | null | undefined;
+
 /**
  * Interface for SQL query options with generic type support
  */
@@ -19,7 +21,7 @@ export interface SqlQueryOptions {
   /** SQL query to execute */
   sql: string;
   /** Parameters to bind to the query */
-  params?: unknown[];
+  params?: SqlParam[];
   /** Whether to return only the first result */
   first?: boolean;
   /** Optional type transformation function to apply to the results */
@@ -69,6 +71,10 @@ export interface D1WorkersConfig {
  */
 export type D1StoreConfig = D1Config | D1WorkersConfig;
 
+function isArrayOfRecords(value: any): value is Record<string, any>[] {
+  return value && Array.isArray(value) && value.length > 0;
+}
+
 export class D1Store extends MastraStorage {
   private client?: Cloudflare;
   private accountId?: string;
@@ -108,6 +114,10 @@ export class D1Store extends MastraStorage {
   // Helper method to get the full table name with prefix
   private getTableName(tableName: TABLE_NAMES): string {
     return `${this.tablePrefix}${tableName}`;
+  }
+
+  private formatSqlParams(params: SqlParam[]): string[] {
+    return params.map(p => (p === undefined || p === null ? null : p) as string);
   }
 
   // Helper method to create SQL indexes for better query performance
@@ -156,12 +166,13 @@ export class D1Store extends MastraStorage {
 
     try {
       const statement = this.binding.prepare(sql);
+      const formattedParams = this.formatSqlParams(params);
 
       // Bind parameters if any
       let result;
-      if (params.length > 0) {
+      if (formattedParams.length > 0) {
         if (first) {
-          result = await statement.bind(...params).first();
+          result = await statement.bind(...formattedParams).first();
           if (!result) return null;
 
           // Apply transformation if provided
@@ -171,7 +182,7 @@ export class D1Store extends MastraStorage {
 
           return result;
         } else {
-          result = await statement.bind(...params).all();
+          result = await statement.bind(...formattedParams).all();
           const results = result.results || [];
 
           // Include metadata for debugging if available
@@ -235,14 +246,14 @@ export class D1Store extends MastraStorage {
       const response = await this.client.d1.database.query(this.databaseId, {
         account_id: this.accountId,
         sql: sql,
-        params: params.map((p: unknown) => (p === undefined || p === null ? null : p)) as string[],
+        params: this.formatSqlParams(params),
       });
 
       const results = response.result || [];
 
       // If first=true, return only the first result
       if (first) {
-        const firstResult = Array.isArray(results) && results.length > 0 ? results[0] : null;
+        const firstResult = isArrayOfRecords(results) && results.length > 0 ? results[0] : null;
         if (!firstResult) return null;
 
         // Apply transformation if provided
@@ -317,8 +328,8 @@ export class D1Store extends MastraStorage {
           });
 
           // The result could be an array or a single item, ensure we return a single item or null
-          if (Array.isArray(result)) {
-            return result.length > 0 ? result[0] : null;
+          if (isArrayOfRecords(result)) {
+            return result[0] || null;
           }
           return result;
         },
@@ -561,7 +572,7 @@ export class D1Store extends MastraStorage {
       const sql = `SELECT * FROM ${fullTableName} WHERE resourceId = ?`;
       const results = await this.executeQuery({ sql, params: [resourceId] });
 
-      return (results && Array.isArray(results) ? results : []).map((thread: any) => ({
+      return (isArrayOfRecords(results) ? results : []).map((thread: any) => ({
         ...thread,
         createdAt: this.ensureDate(thread.createdAt) as Date,
         updatedAt: this.ensureDate(thread.updatedAt) as Date,
@@ -775,7 +786,7 @@ export class D1Store extends MastraStorage {
                   params: [threadId, messageTimestamp, item.withPreviousMessages],
                 });
 
-                if (prevResults && Array.isArray(prevResults)) {
+                if (isArrayOfRecords(prevResults)) {
                   for (const row of prevResults) {
                     messageIdsToFetch.add(row.id);
                   }
@@ -794,7 +805,7 @@ export class D1Store extends MastraStorage {
                     params: [threadId, messageTimestamp, item.withNextMessages],
                   });
 
-                  if (nextResults && Array.isArray(nextResults)) {
+                  if (isArrayOfRecords(nextResults)) {
                     for (const row of nextResults) {
                       messageIdsToFetch.add(row.id);
                     }
@@ -821,7 +832,7 @@ export class D1Store extends MastraStorage {
           params: limitParams,
         });
 
-        if (latestResults && Array.isArray(latestResults)) {
+        if (isArrayOfRecords(latestResults)) {
           for (const row of latestResults) {
             messageIdsToFetch.add(row.id);
           }
@@ -859,18 +870,17 @@ export class D1Store extends MastraStorage {
       });
 
       // Process messages
-      const messages =
-        results && Array.isArray(results)
-          ? results.map((msg: Record<string, any>) => {
-              const processedMsg: Record<string, any> = {};
+      const messages = isArrayOfRecords(results)
+        ? results.map((msg: Record<string, any>) => {
+            const processedMsg: Record<string, any> = {};
 
-              for (const [key, value] of Object.entries(msg)) {
-                processedMsg[key] = this.deserializeValue(value);
-              }
+            for (const [key, value] of Object.entries(msg)) {
+              processedMsg[key] = this.deserializeValue(value);
+            }
 
-              return processedMsg as T;
-            })
-          : [];
+            return processedMsg as T;
+          })
+        : [];
 
       // Sort by creation time to ensure proper order
       messages.sort((a, b) => {
@@ -1040,7 +1050,7 @@ export class D1Store extends MastraStorage {
 
       const results = await this.executeQuery({ sql, params });
 
-      return results && Array.isArray(results)
+      return isArrayOfRecords(results)
         ? results.map((trace: Record<string, any>) => ({
             ...trace,
             attributes: this.deserializeValue(trace.attributes, 'jsonb'),
@@ -1071,7 +1081,7 @@ export class D1Store extends MastraStorage {
 
       const results = await this.executeQuery({ sql, params });
 
-      return results && Array.isArray(results)
+      return isArrayOfRecords(results)
         ? results.map((row: Record<string, any>) => {
             // Convert snake_case to camelCase for the response
             const result = this.deserializeValue(row.result);
