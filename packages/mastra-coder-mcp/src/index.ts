@@ -30,7 +30,7 @@ async function fetchBlogPosts(): Promise<Array<{ title: string; date: string; ur
     // Find all blog post links
     const posts: Array<{ title: string; date: string; url: string }> = [];
     const links = document.querySelectorAll('a');
-    
+
     for (const link of links) {
       const href = link.getAttribute('href');
       if (!href) continue;
@@ -66,10 +66,10 @@ async function fetchBlogPost(url: string): Promise<string> {
 
     // Find the main content area
     const mainContent = document.querySelector('main') || document.body;
-    
+
     // Convert HTML to markdown-like format
     let markdown = '';
-    
+
     // Helper function to process text nodes
     function processTextNode(node: Node): string {
       return node.textContent?.trim() || '';
@@ -104,13 +104,17 @@ async function fetchBlogPost(url: string): Promise<string> {
         case 'pre':
           return `\`\`\`\n${children}\n\`\`\`\n\n`;
         case 'ul':
-          return Array.from(node.children)
-            .map(li => `- ${processElementNode(li)}`)
-            .join('\n') + '\n\n';
+          return (
+            Array.from(node.children)
+              .map(li => `- ${processElementNode(li)}`)
+              .join('\n') + '\n\n'
+          );
         case 'ol':
-          return Array.from(node.children)
-            .map((li, i) => `${i + 1}. ${processElementNode(li)}`)
-            .join('\n') + '\n\n';
+          return (
+            Array.from(node.children)
+              .map((li, i) => `${i + 1}. ${processElementNode(li)}`)
+              .join('\n') + '\n\n'
+          );
         case 'li':
           return children;
         case 'blockquote':
@@ -274,46 +278,39 @@ server.addTool({
 });
 
 server.addTool({
-  name: 'mastraBlogPostList',
-  description: 'Get a list of Mastra.ai blog posts with their titles, dates, and URLs.',
-  parameters: z.object({}),
-  execute: async () => {
-    console.error('mastraBlogPostList tool called');
-    try {
-      const posts = await fetchBlogPosts();
-      const output = [
-        'Mastra.ai Blog Posts:',
-        '',
-        ...posts.map(post => `- ${post.title} (${post.date})\n  ${post.url}`),
-      ].join('\n');
-      console.error('Successfully fetched blog posts');
-      return output;
-    } catch (error) {
-      console.error('Error in mastraBlogPostList tool:', error);
-      if (error instanceof Error) {
-        throw new Error(`Failed to fetch blog posts: ${error.message}`);
-      }
-      throw error;
-    }
-  },
-});
-
-server.addTool({
-  name: 'mastraBlogPost',
-  description: 'Get the content of a specific Mastra.ai blog post, converted to markdown format.',
+  name: 'mastraBlog',
+  description:
+    'Get Mastra.ai blog content. Without a URL, returns a list of all blog posts. With a URL, returns the specific blog post content in markdown format. The blog contains changelog posts as well as announcements and posts about Mastra features and AI news',
   parameters: z.object({
-    url: z.string().url().describe('The URL of the blog post to fetch'),
+    url: z
+      .string()
+      .describe(
+        'URL of a specific blog post to fetch. If the string /blog is passed as the url it returns a list of all blog posts.',
+      ),
   }),
   execute: async args => {
-    console.error('mastraBlogPost tool called with args:', args);
+    console.error('mastraBlog tool called with args:', args);
     try {
-      const content = await fetchBlogPost(args.url);
-      console.error('Successfully fetched blog post');
-      return content;
+      if (args.url !== `/blog`) {
+        console.error('Fetching specific blog post:', args.url);
+        const content = await fetchBlogPost(args.url);
+        console.error('Successfully fetched blog post');
+        return content;
+      } else {
+        console.error('Fetching blog post list');
+        const posts = await fetchBlogPosts();
+        const output = [
+          'Mastra.ai Blog Posts:',
+          '',
+          ...posts.map(post => `- ${post.title} (${post.date})\n  ${post.url}`),
+        ].join('\n');
+        console.error('Successfully fetched blog posts');
+        return output;
+      }
     } catch (error) {
-      console.error('Error in mastraBlogPost tool:', error);
+      console.error('Error in mastraBlog tool:', error);
       if (error instanceof Error) {
-        throw new Error(`Failed to fetch blog post: ${error.message}`);
+        throw new Error(`Failed to fetch blog content: ${error.message}`);
       }
       throw error;
     }
