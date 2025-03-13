@@ -75,7 +75,24 @@ export class Workflow<
     TStep extends StepAction<any, any, any, any>,
     CondStep extends StepVariableType<any, any, any, any>,
     VarStep extends StepVariableType<any, any, any, any>,
-  >(next: TStep | Workflow<TSteps, TTriggerSchema>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
+  >(
+    next: TStep | Workflow<TSteps, TTriggerSchema> | (TStep | Workflow<TSteps, TTriggerSchema>)[],
+    config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>,
+  ) {
+    if (Array.isArray(next)) {
+      next.forEach(step => this.step(step, config));
+      this.after(next);
+      this.step(
+        new Step({
+          // @ts-ignore
+          id: `__after_${next.map(step => step?.id ?? step?.name).join('_')}`,
+          execute: async ({ context }) => {
+            return { success: true };
+          },
+        }),
+      );
+    }
+
     const { variables = {} } = config || {};
 
     const requiredData: Record<string, any> = {};
@@ -136,7 +153,31 @@ export class Workflow<
     TStep extends StepAction<any, any, any, any>,
     CondStep extends StepVariableType<any, any, any, any>,
     VarStep extends StepVariableType<any, any, any, any>,
-  >(next: TStep | Workflow<any, any>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
+  >(
+    next: TStep | Workflow<any, any> | (TStep | Workflow<any, any>)[],
+    config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>,
+  ) {
+    if (Array.isArray(next)) {
+      const lastStep = this.#steps[this.#lastStepStack[this.#lastStepStack.length - 1] ?? ''];
+      if (!lastStep) {
+        throw new Error('Condition requires a step to be executed after');
+      }
+
+      this.after(lastStep);
+      next.forEach(step => this.step(step, config));
+      this.step(
+        new Step({
+          // @ts-ignore
+          id: `__after_${next.map(step => step?.id ?? step?.name).join('_')}`,
+          execute: async ({ context }) => {
+            return { success: true };
+          },
+        }),
+      );
+
+      return this;
+    }
+
     const { variables = {} } = config || {};
 
     const requiredData: Record<string, any> = {};
@@ -446,7 +487,7 @@ export class Workflow<
     return this;
   }
 
-  after<TStep extends StepAction<any, any, any, any>>(steps: TStep | TStep[] | Workflow | Workflow[]) {
+  after<TStep extends StepAction<any, any, any, any>>(steps: TStep | Workflow | (TStep | Workflow)[]) {
     const stepsArray = Array.isArray(steps) ? steps : [steps];
     const stepKeys = stepsArray.map(step => this.#makeStepKey(step));
 
