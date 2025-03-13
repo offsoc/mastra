@@ -11,8 +11,8 @@ import type { TABLE_NAMES, StorageColumn, StorageGetMessagesArg, EvalRow } from 
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import Cloudflare from 'cloudflare';
 import type { D1Database } from '@cloudflare/workers-types';
-
-type SqlParam = string | number | boolean | null | undefined;
+import { createSqlBuilder } from './sql-builder';
+import type { SqlParam } from './sql-builder';
 
 /**
  * Interface for SQL query options with generic type support
@@ -452,20 +452,20 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(tableName);
 
     // Build SQL columns from schema
-    const columns = Object.entries(schema)
-      .map(([colName, colDef]) => {
-        const type = this.getSqlType(colDef.type);
-        const nullable = colDef.nullable === false ? 'NOT NULL' : '';
-        const primaryKey = colDef.primaryKey ? 'PRIMARY KEY' : '';
-        return `${colName} ${type} ${nullable} ${primaryKey}`.trim();
-      })
-      .join(', ');
+    const columnDefinitions = Object.entries(schema).map(([colName, colDef]) => {
+      const type = this.getSqlType(colDef.type);
+      const nullable = colDef.nullable === false ? 'NOT NULL' : '';
+      const primaryKey = colDef.primaryKey ? 'PRIMARY KEY' : '';
+      return `${colName} ${type} ${nullable} ${primaryKey}`.trim();
+    });
 
-    // Create table if not exists
-    const sql = `CREATE TABLE IF NOT EXISTS ${fullTableName} (${columns})`;
+    // Use SQL builder for consistent query construction
+    const query = createSqlBuilder().createTable(fullTableName, columnDefinitions);
+
+    const { sql, params } = query.build();
 
     try {
-      await this.executeQuery({ sql });
+      await this.executeQuery({ sql, params });
       this.logger.debug(`Created table ${fullTableName}`);
     } catch (error) {
       this.logger.error(`Error creating table ${fullTableName}:`, { error });
@@ -477,7 +477,11 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(tableName);
 
     try {
-      await this.executeQuery({ sql: `DELETE FROM ${fullTableName}` });
+      // Use SQL builder for consistent query construction
+      const query = createSqlBuilder().delete(fullTableName);
+
+      const { sql, params } = query.build();
+      await this.executeQuery({ sql, params });
       this.logger.debug(`Cleared table ${fullTableName}`);
     } catch (error) {
       this.logger.error(`Error clearing table ${fullTableName}:`, { error });
@@ -490,21 +494,21 @@ export class D1Store extends MastraStorage {
 
     // Process record for SQL insertion
     const processedRecord: Record<string, any> = {};
-
     for (const [key, value] of Object.entries(record)) {
       processedRecord[key] = this.serializeValue(value);
     }
 
-    const columns = Object.keys(processedRecord).join(', ');
-    const placeholders = Object.keys(processedRecord)
-      .map(() => '?')
-      .join(', ');
+    // Extract columns and values
+    const columns = Object.keys(processedRecord);
     const values = Object.values(processedRecord);
 
-    const sql = `INSERT OR REPLACE INTO ${fullTableName} (${columns}) VALUES (${placeholders})`;
+    // Build the INSERT query using SQL builder
+    const query = createSqlBuilder().insert(fullTableName, columns, values);
+
+    const { sql, params } = query.build();
 
     try {
-      await this.executeQuery({ sql, params: values });
+      await this.executeQuery({ sql, params });
     } catch (error) {
       this.logger.error(`Error inserting into ${fullTableName}:`, { error });
       throw new Error(`Failed to insert into ${fullTableName}: ${error}`);
@@ -514,16 +518,25 @@ export class D1Store extends MastraStorage {
   async load<R>({ tableName, keys }: { tableName: TABLE_NAMES; keys: Record<string, string> }): Promise<R | null> {
     const fullTableName = this.getTableName(tableName);
 
-    // Build WHERE clause from keys
-    const whereConditions = Object.keys(keys)
-      .map(key => `${key} = ?`)
-      .join(' AND ');
-    const values = Object.values(keys);
+    // Build query using SQL builder
+    const query = createSqlBuilder().select('*').from(fullTableName);
 
-    const sql = `SELECT * FROM ${fullTableName} WHERE ${whereConditions} LIMIT 1`;
+    // Add WHERE conditions for each key
+    let firstKey = true;
+    for (const [key, value] of Object.entries(keys)) {
+      if (firstKey) {
+        query.where(`${key} = ?`, value);
+        firstKey = false;
+      } else {
+        query.andWhere(`${key} = ?`, value);
+      }
+    }
+
+    query.limit(1);
+    const { sql, params } = query.build();
 
     try {
-      const result = await this.executeQuery({ sql, params: values, first: true });
+      const result = await this.executeQuery({ sql, params, first: true });
 
       if (!result) return null;
 
@@ -569,8 +582,10 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_THREADS);
 
     try {
-      const sql = `SELECT * FROM ${fullTableName} WHERE resourceId = ?`;
-      const results = await this.executeQuery({ sql, params: [resourceId] });
+      const query = createSqlBuilder().select('*').from(fullTableName).where('resourceId = ?', resourceId);
+
+      const { sql, params } = query.build();
+      const results = await this.executeQuery({ sql, params });
 
       return (isArrayOfRecords(results) ? results : []).map((thread: any) => ({
         ...thread,
@@ -635,11 +650,18 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_THREADS);
 
     try {
-      await this.executeQuery({ sql: `DELETE FROM ${fullTableName} WHERE id = ?`, params: [threadId] });
+      // Delete the thread using SQL builder
+      const deleteThreadQuery = createSqlBuilder().delete(fullTableName).where('id = ?', threadId);
 
-      // Also delete associated messages
+      const { sql: threadSql, params: threadParams } = deleteThreadQuery.build();
+      await this.executeQuery({ sql: threadSql, params: threadParams });
+
+      // Also delete associated messages using SQL builder
       const messagesTableName = this.getTableName(TABLE_MESSAGES);
-      await this.executeQuery({ sql: `DELETE FROM ${messagesTableName} WHERE thread_id = ?`, params: [threadId] });
+      const deleteMessagesQuery = createSqlBuilder().delete(messagesTableName).where('thread_id = ?', threadId);
+
+      const { sql: messagesSql, params: messagesParams } = deleteMessagesQuery.build();
+      await this.executeQuery({ sql: messagesSql, params: messagesParams });
     } catch (error) {
       this.logger.error(`Error deleting thread ${threadId}:`, { error });
       throw new Error(`Failed to delete thread ${threadId}: ${error}`);
@@ -735,8 +757,6 @@ export class D1Store extends MastraStorage {
     }
   }
 
-  // SQL-based implementation of getMessages
-
   async getMessages<T = MessageType>({ threadId, selectBy }: StorageGetMessagesArg): Promise<T[]> {
     const limit = typeof selectBy?.last === 'number' ? selectBy.last : 40;
     const fullTableName = this.getTableName(TABLE_MESSAGES);
@@ -759,14 +779,20 @@ export class D1Store extends MastraStorage {
           // If we need context (previous/next messages)
           if (item.withPreviousMessages || item.withNextMessages) {
             // First, get the current message's position (using created_at as the ordering)
-            const positionQuery = `
-              SELECT created_at FROM ${fullTableName} 
-              WHERE thread_id = ? AND id = ? 
-              LIMIT 1
-            `;
+            const sqlBuilder = createSqlBuilder();
+
+            // Build position query
+            sqlBuilder
+              .select('created_at')
+              .from(fullTableName)
+              .where('thread_id = ?', threadId)
+              .andWhere('id = ?', item.id)
+              .limit(1);
+
+            const { sql: positionQuery, params: positionParams } = sqlBuilder.build();
             const positionResult = await this.executeQuery({
               sql: positionQuery,
-              params: [threadId, item.id],
+              params: positionParams,
               first: true,
             });
 
@@ -775,15 +801,19 @@ export class D1Store extends MastraStorage {
 
               // Get previous messages if requested
               if (item.withPreviousMessages && item.withPreviousMessages > 0) {
-                const prevQuery = `
-                  SELECT id FROM ${fullTableName} 
-                  WHERE thread_id = ? AND created_at < ? 
-                  ORDER BY created_at DESC 
-                  LIMIT ?
-                `;
+                sqlBuilder
+                  .reset()
+                  .select('id')
+                  .from(fullTableName)
+                  .where('thread_id = ?', threadId)
+                  .andWhere('created_at < ?', messageTimestamp)
+                  .orderBy('created_at', 'DESC')
+                  .limit(item.withPreviousMessages);
+
+                const { sql: prevQuery, params: prevParams } = sqlBuilder.build();
                 const prevResults = await this.executeQuery({
                   sql: prevQuery,
-                  params: [threadId, messageTimestamp, item.withPreviousMessages],
+                  params: prevParams,
                 });
 
                 if (isArrayOfRecords(prevResults)) {
@@ -794,15 +824,19 @@ export class D1Store extends MastraStorage {
 
                 // Get next messages if requested
                 if (item.withNextMessages && item.withNextMessages > 0) {
-                  const nextQuery = `
-                  SELECT id FROM ${fullTableName} 
-                  WHERE thread_id = ? AND created_at > ? 
-                  ORDER BY created_at ASC 
-                  LIMIT ?
-                `;
+                  sqlBuilder
+                    .reset()
+                    .select('id')
+                    .from(fullTableName)
+                    .where('thread_id = ?', threadId)
+                    .andWhere('created_at > ?', messageTimestamp)
+                    .orderBy('created_at', 'ASC')
+                    .limit(item.withNextMessages);
+
+                  const { sql: nextQuery, params: nextParams } = sqlBuilder.build();
                   const nextResults = await this.executeQuery({
                     sql: nextQuery,
-                    params: [threadId, messageTimestamp, item.withNextMessages],
+                    params: nextParams,
                   });
 
                   if (isArrayOfRecords(nextResults)) {
@@ -839,34 +873,30 @@ export class D1Store extends MastraStorage {
         }
       }
 
-      // Now fetch all the messages we need
-      let mainQuery;
-      let mainParams: any[];
+      // Now fetch all the messages we need using SQL builder
+      let query = createSqlBuilder().select('*').from(fullTableName);
 
       if (messageIdsToFetch.size > 0) {
         const messageIds = Array.from(messageIdsToFetch);
+        // Create placeholders for the IN clause
         const placeholders = messageIds.map(() => '?').join(',');
 
-        mainQuery = `
-          SELECT * FROM ${fullTableName} 
-          WHERE thread_id = ? AND id IN (${placeholders}) 
-          ORDER BY created_at ASC
-        `;
-        mainParams = [threadId, ...messageIds];
+        query
+          .where('thread_id = ?', threadId)
+          .andWhere(`id IN (${placeholders})`, ...messageIds)
+          .orderBy('created_at', 'ASC');
       } else {
         // Fallback to getting the latest messages
-        mainQuery = `
-          SELECT * FROM ${fullTableName} 
-          WHERE thread_id = ? 
-          ORDER BY created_at ASC 
-          LIMIT ?
-        `;
-        mainParams = [threadId, limit > 0 ? limit : 40];
+        query
+          .where('thread_id = ?', threadId)
+          .orderBy('created_at', 'ASC')
+          .limit(limit > 0 ? limit : 40);
       }
 
+      const { sql, params } = query.build();
       const results = await this.executeQuery({
-        sql: mainQuery,
-        params: mainParams,
+        sql,
+        params,
       });
 
       // Process messages
@@ -989,10 +1019,12 @@ export class D1Store extends MastraStorage {
                 const value = typeof col === 'string' ? record[col as keyof typeof record] : null;
                 return this.serializeValue(value);
               });
-              const placeholders = columns.map(() => '?').join(', ');
 
-              const sql = `INSERT OR REPLACE INTO ${fullTableName} (${columns.join(', ')}) VALUES (${placeholders})`;
-              await transaction.executeQuery({ sql, params: values });
+              // Use SQL builder for consistent query construction
+              const query = createSqlBuilder().insert(fullTableName, columns, values);
+
+              const { sql, params } = query.build();
+              await transaction.executeQuery({ sql, params });
             }
           }
 
@@ -1025,29 +1057,29 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_TRACES);
 
     try {
-      let sql = `SELECT * FROM ${fullTableName} WHERE 1=1`;
-      const params: any[] = [];
+      const query = createSqlBuilder().select('*').from(fullTableName).where('1=1');
 
       if (name) {
-        sql += ` AND name = ?`;
-        params.push(name);
+        query.andWhere('name = ?', name);
       }
 
       if (scope) {
-        sql += ` AND scope = ?`;
-        params.push(scope);
+        query.andWhere('scope = ?', scope);
       }
 
       if (attributes && Object.keys(attributes).length > 0) {
-        // This is a simplified approach - in a real implementation,
-        // you'd need a more sophisticated way to query JSON attributes
-        sql += ` AND attributes LIKE ?`;
-        params.push(`%${JSON.stringify(attributes).slice(1, -1)}%`);
+        // Handle JSON attribute filtering
+        for (const [key, value] of Object.entries(attributes)) {
+          query.jsonLike('attributes', key, value);
+        }
       }
 
-      sql += ` ORDER BY startTime DESC LIMIT ? OFFSET ?`;
-      params.push(perPage, (page - 1) * perPage);
+      query
+        .orderBy('startTime', 'DESC')
+        .limit(perPage)
+        .offset((page - 1) * perPage);
 
+      const { sql, params } = query.build();
       const results = await this.executeQuery({ sql, params });
 
       return isArrayOfRecords(results)
@@ -1069,16 +1101,16 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_EVALS);
 
     try {
-      let sql = `SELECT * FROM ${fullTableName} WHERE agent_name = ?`;
-      const params: any[] = [agentName];
+      // Build the query using SQL builder
+      const query = createSqlBuilder().select('*').from(fullTableName).where('agent_name = ?', agentName);
 
       if (type) {
-        sql += ` AND type = ?`;
-        params.push(type);
+        query.andWhere('type = ?', type);
       }
 
-      sql += ` ORDER BY created_at DESC`;
+      query.orderBy('created_at', 'DESC');
 
+      const { sql, params } = query.build();
       const results = await this.executeQuery({ sql, params });
 
       return isArrayOfRecords(results)
@@ -1088,15 +1120,15 @@ export class D1Store extends MastraStorage {
             const testInfo = row.test_info ? this.deserializeValue(row.test_info) : undefined;
 
             return {
-              input: String(row.input || ''),
-              output: String(row.output || ''),
+              input: row.input || '',
+              output: row.output || '',
               result,
-              agentName: String(row.agent_name || ''),
-              metricName: String(row.metric_name || ''),
-              instructions: String(row.instructions || ''),
-              runId: String(row.run_id || ''),
-              globalRunId: String(row.global_run_id || ''),
-              createdAt: String(row.created_at || ''),
+              agentName: row.agent_name || '',
+              metricName: row.metric_name || '',
+              instructions: row.instructions || '',
+              runId: row.run_id || '',
+              globalRunId: row.global_run_id || '',
+              createdAt: row.created_at || '',
               testInfo,
             };
           })
