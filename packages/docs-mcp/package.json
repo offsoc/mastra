@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": "dist/stdio.js",
   "exports": {
     ".": {
       "import": {
@@ -26,6 +27,7 @@
     "dev": "fastmcp dev src/index.ts",
     "inspect": "fastmcp inspect src/index.ts",
     "build:watch": "pnpm build --watch",
+    "pretest": "pnpm prepare-docs",
     "test": "vitest run",
     "lint": "eslint ."
   },
