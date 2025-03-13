@@ -265,6 +265,7 @@ export type SubscriberFunctionOutput = {
 export type DependencyCheckOutput =
   | { type: 'CONDITIONS_MET' }
   | { type: 'CONDITIONS_SKIPPED' }
+  | { type: 'CONDITIONS_SKIP_TO_COMPLETED' }
   | { type: 'CONDITION_FAILED'; error: string }
   | { type: 'SUSPENDED' }
   | { type: 'WAITING' }

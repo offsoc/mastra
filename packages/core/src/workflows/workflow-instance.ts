@@ -206,6 +206,10 @@ export class WorkflowInstance<TSteps extends Step<any, any, any>[] = any, TTrigg
     return { results, activePaths };
   }
 
+  hasSubscribers(stepId: string) {
+    return Object.keys(this.#stepSubscriberGraph).some(key => key.split('&&').includes(stepId));
+  }
+
   async runMachine(parentStepId: string, input: any) {
     const stepStatus = input.steps[parentStepId]?.status;
 
