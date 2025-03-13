@@ -11,6 +11,7 @@ import type { TABLE_NAMES, StorageColumn, StorageGetMessagesArg, EvalRow } from 
 import type { WorkflowRunState } from '@mastra/core/workflows';
 import type { MetricResult, TestInfo } from '@mastra/core/eval';
 import Cloudflare from 'cloudflare';
+import type { D1Database } from '@cloudflare/workers-types';
 
 /**
  * Interface for SQL query options with generic type support
@@ -59,7 +60,7 @@ export interface D1Config {
  */
 export interface D1WorkersConfig {
   /** D1 database binding from Workers environment */
-  binding: any; // D1Database binding from Workers
+  binding: D1Database; // D1Database binding from Workers
   /** Optional prefix for table names */
   tablePrefix?: string;
 }
@@ -73,7 +74,7 @@ export class D1Store extends MastraStorage {
   private client?: Cloudflare;
   private accountId?: string;
   private databaseId?: string;
-  private binding?: any; // D1Database binding
+  private binding?: D1Database; // D1Database binding
   private tablePrefix: string;
 
   /**
@@ -179,7 +180,12 @@ export class D1Store extends MastraStorage {
             this.logger.debug('Query metadata', { meta: result.meta });
           }
 
-          return results;
+          // Apply transformation if provided
+          if (transform && typeof transform === 'function') {
+            return results.map(row => transform(row as Record<string, unknown>)) as T[];
+          }
+
+          return results as T[];
         }
       } else {
         if (first) {
@@ -201,7 +207,12 @@ export class D1Store extends MastraStorage {
             this.logger.debug('Query metadata', { meta: result.meta });
           }
 
-          return results;
+          // Apply transformation if provided
+          if (transform && typeof transform === 'function') {
+            return results.map(row => transform(row as Record<string, unknown>)) as T[];
+          }
+
+          return results as T[];
         }
       }
     } catch (workerError: any) {
