@@ -24,7 +24,7 @@ async function fetchBlogPosts(): Promise<BlogPost[]> {
       if (!href) continue;
 
       // Look for blog post links that have a date
-      const dateText = link.textContent?.match(/\w+ \d+, \d{4}/);
+      const dateText = link.textContent?.match(/(?:\w+ \d+, \d{4}|[A-Za-z]+ \d+,? \d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
       if (dateText) {
         const title = link.textContent?.replace(dateText[0], '').trim() || '';
         posts.push({
@@ -85,9 +85,16 @@ async function fetchBlogPost(url: string): Promise<string> {
           const href = node.getAttribute('href');
           return href ? `[${children}](${href})` : children;
         case 'code':
+          // If parent is pre, don't wrap in backticks as it's already a code block
+          if (node.parentElement?.tagName.toLowerCase() === 'pre') {
+            return children;
+          }
           return `\`${children}\``;
         case 'pre':
-          return `\`\`\`\n${children}\n\`\`\`\n\n`;
+          // If contains a code element, use its content directly
+          const codeElement = node.querySelector('code');
+          const content = codeElement ? codeElement.textContent || children : children;
+          return `\`\`\`\n${content}\n\`\`\`\n\n`;
         case 'ul':
           return (
             Array.from(node.children)
