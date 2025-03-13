@@ -3224,6 +3224,108 @@ importers:
       '@internal/lint':
         specifier: workspace:*
         version: link:../_config
+      '@mastra/astra':
+        specifier: workspace:^
+        version: link:../../stores/astra
+      '@mastra/chroma':
+        specifier: workspace:^
+        version: link:../../stores/chroma
+      '@mastra/client-js':
+        specifier: workspace:^
+        version: link:../../client-sdks/client-js
+      '@mastra/composio':
+        specifier: workspace:^
+        version: link:../../integrations/composio
+      '@mastra/deployer':
+        specifier: workspace:^
+        version: link:../deployer
+      '@mastra/deployer-cloudflare':
+        specifier: workspace:^
+        version: link:../../deployers/cloudflare
+      '@mastra/deployer-netlify':
+        specifier: workspace:^
+        version: link:../../deployers/netlify
+      '@mastra/deployer-vercel':
+        specifier: workspace:^
+        version: link:../../deployers/vercel
+      '@mastra/evals':
+        specifier: workspace:^
+        version: link:../evals
+      '@mastra/firecrawl':
+        specifier: workspace:^
+        version: link:../../integrations/firecrawl
+      '@mastra/github':
+        specifier: workspace:^
+        version: link:../../integrations/github
+      '@mastra/loggers':
+        specifier: workspace:^
+        version: link:../loggers
+      '@mastra/mcp':
+        specifier: workspace:^
+        version: link:../mcp
+      '@mastra/memory':
+        specifier: workspace:^
+        version: link:../memory
+      '@mastra/pg':
+        specifier: workspace:^
+        version: link:../../stores/pg
+      '@mastra/pinecone':
+        specifier: workspace:^
+        version: link:../../stores/pinecone
+      '@mastra/playground-ui':
+        specifier: workspace:^
+        version: link:../playground-ui
+      '@mastra/qdrant':
+        specifier: workspace:^
+        version: link:../../stores/qdrant
+      '@mastra/rag':
+        specifier: workspace:^
+        version: link:../rag
+      '@mastra/ragie':
+        specifier: workspace:^
+        version: link:../../integrations/ragie
+      '@mastra/speech-azure':
+        specifier: workspace:^
+        version: link:../../speech/azure
+      '@mastra/speech-deepgram':
+        specifier: workspace:^
+        version: link:../../speech/deepgram
+      '@mastra/speech-elevenlabs':
+        specifier: workspace:^
+        version: link:../../speech/elevenlabs
+      '@mastra/speech-google':
+        specifier: workspace:^
+        version: link:../../speech/google
+      '@mastra/speech-ibm':
+        specifier: workspace:^
+        version: link:../../speech/ibm
+      '@mastra/speech-murf':
+        specifier: workspace:^
+        version: link:../../speech/murf
+      '@mastra/speech-openai':
+        specifier: workspace:^
+        version: link:../../speech/openai
+      '@mastra/speech-playai':
+        specifier: workspace:^
+        version: link:../../speech/playai
+      '@mastra/speech-replicate':
+        specifier: workspace:^
+        version: link:../../speech/replicate
+      '@mastra/speech-speechify':
+        specifier: workspace:^
+        version: link:../../speech/speechify
+      '@mastra/stabilityai':
+        specifier: workspace:^
+        version: link:../../integrations/stabilityai
+      '@mastra/turbopuffer':
+        specifier: workspace:^
+        version: link:../../stores/turbopuffer
+      '@mastra/upstash':
+        specifier: workspace:^
+        version: link:../../stores/upstash
+      '@mastra/vectorize':
+        specifier: workspace:^
+        version: link:../../stores/vectorize
       '@microsoft/api-extractor':
         specifier: ^7.52.1
         version: 7.52.1(@types/node@20.17.24)
@@ -3233,9 +3335,15 @@ importers:
       '@wong2/mcp-cli':
         specifier: ^1.6.0
         version: 1.6.0
+      create-mastra:
+        specifier: workspace:^
+        version: link:../create-mastra
       eslint:
         specifier: ^9.22.0
         version: 9.22.0(jiti@2.4.2)
+      mastra:
+        specifier: workspace:^
+        version: link:../cli
       tsup:
         specifier: ^8.4.0
         version: 8.4.0(@microsoft/api-extractor@7.52.1(@types/node@20.17.24))(@swc/core@1.11.8(@swc/helpers@0.5.15))(jiti@2.4.2)(postcss@8.5.3)(tsx@4.19.3)(typescript@5.7.3)(yaml@2.7.0)
