@@ -48,7 +48,7 @@ export function WorkflowTrigger({
 
     setResult(null);
 
-    const { runId } = await createWorkflowRun({ workflowId, input: data });
+    const { runId } = await createWorkflowRun({ workflowId });
 
     setRunId?.(runId);
 
@@ -60,18 +60,18 @@ export function WorkflowTrigger({
   const handleResumeWorkflow = async (step: SuspendedStep & { context: any }) => {
     if (!workflow) return;
 
-    const { stepId, runId, context } = step;
+    const { stepId, runId: prevRunId, context } = step;
 
-    // TODO: fix this, result seems incomplete, missing active paths
-    const result = await resumeWorkflow({
+    const { runId } = await createWorkflowRun({ workflowId, prevRunId });
+
+    watchWorkflow({ workflowId, runId });
+
+    await resumeWorkflow({
       stepId,
       runId,
       context,
       workflowId,
     });
-    setResult(result);
-
-    // watchWorkflow({ workflowId, runId });
   };
 
   const watchResultToUse = result ?? watchResult;

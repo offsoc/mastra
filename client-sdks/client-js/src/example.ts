@@ -46,7 +46,6 @@ import type { WorkflowRunResult } from './types';
 // })();
 
 // Workflow
-
 // (async () => {
 //   const client = new MastraClient({
 //     baseUrl: 'http://localhost:4111',
@@ -68,6 +67,7 @@ import type { WorkflowRunResult } from './types';
 //         city: 'New York',
 //       },
 //     });
+
 //   } catch (e) {
 //     console.error('Workflow error:', e);
 //   }

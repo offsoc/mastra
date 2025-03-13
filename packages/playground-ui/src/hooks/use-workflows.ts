@@ -63,11 +63,11 @@ export const useExecuteWorkflow = (baseUrl: string) => {
     }
   };
 
-  const createWorkflowRun = async ({ workflowId, input }: { workflowId: string; input: any }) => {
+  const createWorkflowRun = async ({ workflowId, prevRunId }: { workflowId: string; prevRunId?: string }) => {
     try {
       const workflow = client.getWorkflow(workflowId);
-      const { runId } = await workflow.createRun();
-      return { runId };
+      const { runId: newRunId } = await workflow.createRun({ runId: prevRunId });
+      return { runId: newRunId };
     } catch (error) {
       console.error('Error creating workflow run:', error);
       throw error;
