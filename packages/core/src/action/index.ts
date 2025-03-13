@@ -24,7 +24,7 @@ export type MastraUnion = {
 } & MastraPrimitives;
 
 export interface IExecutionContext<TSchemaIn extends z.ZodSchema | undefined = undefined> {
-  context: TSchemaIn extends z.ZodSchema ? z.infer<TSchemaIn> : {};
+  context: TSchemaIn extends z.ZodSchema ? { inputData: z.infer<TSchemaIn> } : {};
   runId?: string;
   threadId?: string;
   resourceId?: string;
@@ -34,7 +34,7 @@ export interface IAction<
   TId extends string,
   TSchemaIn extends z.ZodSchema | undefined,
   TSchemaOut extends z.ZodSchema | undefined,
-  TContext extends IExecutionContext<TSchemaIn>,
+  TContext extends IExecutionContext,
   TOptions extends unknown = unknown,
 > {
   id: TId;
