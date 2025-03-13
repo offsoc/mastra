@@ -138,7 +138,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^3.0.8
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   deployers/netlify:
     dependencies:
@@ -184,7 +184,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^3.0.8
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   deployers/vercel:
     dependencies:
@@ -224,7 +224,7 @@ importers:
         version: 39.4.2(@swc/core@1.11.8(@swc/helpers@0.5.15))(encoding@0.1.13)(rollup@4.35.0)
       vitest:
         specifier: ^3.0.8
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   examples/agent:
     dependencies:
@@ -1947,6 +1947,9 @@ importers:
       jest:
         specifier: ^29.7.0
         version: 29.7.0(@types/node@22.13.10)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.8(@swc/helpers@0.5.15))(@types/node@22.13.10)(typescript@5.7.3))
+      mastra:
+        specifier: workspace:*
+        version: link:../../packages/cli
       ts-jest:
         specifier: ^29.2.6
         version: 29.2.6(@babel/core@7.26.9)(@jest/transform@29.7.0)(@jest/types@29.6.3)(babel-jest@29.7.0(@babel/core@7.26.9))(jest@29.7.0(@types/node@22.13.10)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.8(@swc/helpers@0.5.15))(@types/node@22.13.10)(typescript@5.7.3)))(typescript@5.7.3)
@@ -2932,9 +2935,6 @@ importers:
       json-schema-to-zod:
         specifier: ^2.6.0
         version: 2.6.0
-      node_modules-path:
-        specifier: ^2.0.8
-        version: 2.0.8
       pino:
         specifier: ^9.6.0
         version: 9.6.0
@@ -3004,7 +3004,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^3.0.8
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   packages/create-mastra:
     dependencies:
@@ -3697,7 +3697,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^3.0.8
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   speech/azure:
     dependencies:
@@ -3827,7 +3827,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   speech/ibm:
     dependencies:
@@ -4078,7 +4078,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^3.0.8
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   stores/d1:
     dependencies:
@@ -4106,7 +4106,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^3.0.4
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   stores/pg:
     dependencies:
@@ -4307,7 +4307,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^3.0.8
-        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   voice/deepgram:
     dependencies:
@@ -4341,7 +4341,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   voice/elevenlabs:
     dependencies:
@@ -4375,7 +4375,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   voice/google:
     dependencies:
@@ -4409,7 +4409,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   voice/murf:
     dependencies:
@@ -4477,7 +4477,7 @@ importers:
         version: 5.7.3
       vitest:
         specifier: ^2.1.9
-        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+        version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
 
   voice/playai:
     dependencies:
@@ -16278,7 +16278,6 @@ packages:
 
   libsql@0.4.7:
     resolution: {integrity: sha512-T9eIRCs6b0J1SHKYIvD8+KCJMcWZ900iZyxdnSCdqxN12Z1ijzT+jY5nrk72Jw4B0HGzms2NgpryArlJqvc3Lw==}
-    cpu: [x64, arm64, wasm32]
     os: [darwin, linux, win32]
 
   lie@3.3.0:
@@ -17439,11 +17438,6 @@ packages:
   node-stream-zip@1.15.0:
     resolution: {integrity: sha512-LN4fydt9TqhZhThkZIVQnF9cwjU3qmUH9h78Mx/K7d3VvfRqqwthLwJEUOEL0QPZ0XQmNN7be5Ggit5+4dq3Bw==}
     engines: {node: '>=0.12.0'}
-
-  node_modules-path@2.0.8:
-    resolution: {integrity: sha512-zYCbgNvIJLFxzHizfwMQ+wPTX5DHqee6hpTBs3Z/8TYUhvHCtVpJa0KGdVwaaD5RGHCUuaNua9abgBsNwH9WSw==}
-    engines: {node: '>=10.15.3'}
-    hasBin: true
 
   nodemon@3.1.9:
     resolution: {integrity: sha512-hdr1oIb2p6ZSxu3PB2JWWYS7ZQ0qvaZsc3hK8DR8f02kRzc8rjYmxAIvdz+aYC+8F2IjNaB7HMcSDg8nQpJxyg==}
@@ -22435,7 +22429,7 @@ snapshots:
       '@babel/traverse': 7.26.9
       '@babel/types': 7.26.9
       convert-source-map: 2.0.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       gensync: 1.0.0-beta.2
       json5: 2.2.3
       semver: 6.3.1
@@ -22493,7 +22487,7 @@ snapshots:
       '@babel/core': 7.26.9
       '@babel/helper-compilation-targets': 7.26.5
       '@babel/helper-plugin-utils': 7.26.5
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       lodash.debounce: 4.0.8
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -23205,7 +23199,7 @@ snapshots:
       '@babel/helper-split-export-declaration': 7.24.7
       '@babel/parser': 7.26.9
       '@babel/types': 7.26.9
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -23217,7 +23211,7 @@ snapshots:
       '@babel/parser': 7.26.9
       '@babel/template': 7.26.9
       '@babel/types': 7.26.9
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       globals: 11.12.0
     transitivePeerDependencies:
       - supports-color
@@ -24242,7 +24236,7 @@ snapshots:
   '@eslint/config-array@0.19.2':
     dependencies:
       '@eslint/object-schema': 2.1.6
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -24256,7 +24250,7 @@ snapshots:
   '@eslint/eslintrc@2.1.4':
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       espree: 9.6.1
       globals: 13.24.0
       ignore: 5.3.2
@@ -24270,7 +24264,7 @@ snapshots:
   '@eslint/eslintrc@3.3.0':
     dependencies:
       ajv: 6.12.6
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       espree: 10.3.0
       globals: 14.0.0
       ignore: 5.3.2
@@ -24475,7 +24469,7 @@ snapshots:
   '@humanwhocodes/config-array@0.13.0':
     dependencies:
       '@humanwhocodes/object-schema': 2.0.3
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -25062,7 +25056,7 @@ snapshots:
 
   '@kwsites/file-exists@1.1.1':
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -25180,7 +25174,7 @@ snapshots:
       '@llamaindex/core': 0.4.23(@aws-crypto/sha256-js@5.2.0)(@huggingface/transformers@3.3.3)(gpt-tokenizer@2.8.1)(js-tiktoken@1.0.19)(pathe@2.0.3)
       '@llamaindex/env': 0.1.27(@aws-crypto/sha256-js@5.2.0)(@huggingface/transformers@3.3.3)(gpt-tokenizer@2.8.1)(js-tiktoken@1.0.19)(pathe@2.0.3)
       remeda: 2.21.1
-      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5))(terser@5.39.0)
+      vitest: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0)
     transitivePeerDependencies:
       - '@aws-crypto/sha256-js'
       - '@edge-runtime/vm'
@@ -25663,7 +25657,7 @@ snapshots:
   '@mapbox/node-pre-gyp@1.0.11(encoding@0.1.13)':
     dependencies:
       detect-libc: 2.0.3
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       make-dir: 3.1.0
       node-fetch: 2.7.0(encoding@0.1.13)
       nopt: 5.0.0
@@ -26148,7 +26142,7 @@ snapshots:
       normalize-path: 3.0.0
       p-map: 7.0.3
       path-exists: 5.0.0
-      precinct: 11.0.5(supports-color@9.4.0)
+      precinct: 11.0.5
       require-package-name: 2.0.1
       resolve: 2.0.0-next.5
       semver: 7.7.1
@@ -29394,7 +29388,7 @@ snapshots:
 
   '@tokenizer/inflate@0.2.7':
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       fflate: 0.8.2
       token-types: 6.0.0
     transitivePeerDependencies:
@@ -29863,7 +29857,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.7.3)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 8.57.1
       graphemer: 1.4.0
       ignore: 5.3.2
@@ -29882,7 +29876,7 @@ snapshots:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/type-utils': 5.62.0(eslint@8.57.1)(typescript@5.7.3)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 9.22.0(jiti@2.4.2)
       graphemer: 1.4.0
       ignore: 5.3.2
@@ -29949,8 +29943,8 @@ snapshots:
     dependencies:
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
-      '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.7.3)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.7.3
@@ -29963,7 +29957,7 @@ snapshots:
       '@typescript-eslint/types': 7.2.0
       '@typescript-eslint/typescript-estree': 7.2.0(typescript@5.7.3)
       '@typescript-eslint/visitor-keys': 7.2.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 8.57.1
     optionalDependencies:
       typescript: 5.7.3
@@ -29976,7 +29970,7 @@ snapshots:
       '@typescript-eslint/types': 8.24.1
       '@typescript-eslint/typescript-estree': 8.24.1(typescript@5.7.3)
       '@typescript-eslint/visitor-keys': 8.24.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 8.57.1
       typescript: 5.7.3
     transitivePeerDependencies:
@@ -29988,7 +29982,7 @@ snapshots:
       '@typescript-eslint/types': 8.24.1
       '@typescript-eslint/typescript-estree': 8.24.1(typescript@5.7.3)
       '@typescript-eslint/visitor-keys': 8.24.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 9.22.0(jiti@2.4.2)
       typescript: 5.7.3
     transitivePeerDependencies:
@@ -30000,7 +29994,7 @@ snapshots:
       '@typescript-eslint/types': 8.26.1
       '@typescript-eslint/typescript-estree': 8.26.1(typescript@5.7.3)
       '@typescript-eslint/visitor-keys': 8.26.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 9.22.0(jiti@2.4.2)
       typescript: 5.7.3
     transitivePeerDependencies:
@@ -30028,9 +30022,9 @@ snapshots:
 
   '@typescript-eslint/type-utils@5.62.0(eslint@8.57.1)(typescript@5.7.3)':
     dependencies:
-      '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.7.3)
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.7.3)
       '@typescript-eslint/utils': 5.62.0(eslint@8.57.1)(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 8.57.1
       tsutils: 3.21.0(typescript@5.7.3)
     optionalDependencies:
@@ -30042,7 +30036,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/typescript-estree': 8.24.1(typescript@5.7.3)
       '@typescript-eslint/utils': 8.24.1(eslint@8.57.1)(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 8.57.1
       ts-api-utils: 2.0.1(typescript@5.7.3)
       typescript: 5.7.3
@@ -30053,7 +30047,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/typescript-estree': 8.24.1(typescript@5.7.3)
       '@typescript-eslint/utils': 8.24.1(eslint@9.22.0(jiti@2.4.2))(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 9.22.0(jiti@2.4.2)
       ts-api-utils: 2.0.1(typescript@5.7.3)
       typescript: 5.7.3
@@ -30064,7 +30058,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/typescript-estree': 8.26.1(typescript@5.7.3)
       '@typescript-eslint/utils': 8.26.1(eslint@9.22.0(jiti@2.4.2))(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       eslint: 9.22.0(jiti@2.4.2)
       ts-api-utils: 2.0.1(typescript@5.7.3)
       typescript: 5.7.3
@@ -30093,11 +30087,25 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@typescript-eslint/typescript-estree@5.62.0(typescript@5.7.3)':
+    dependencies:
+      '@typescript-eslint/types': 5.62.0
+      '@typescript-eslint/visitor-keys': 5.62.0
+      debug: 4.4.0(supports-color@8.1.1)
+      globby: 11.1.0
+      is-glob: 4.0.3
+      semver: 7.7.1
+      tsutils: 3.21.0(typescript@5.7.3)
+    optionalDependencies:
+      typescript: 5.7.3
+    transitivePeerDependencies:
+      - supports-color
+
   '@typescript-eslint/typescript-estree@7.2.0(typescript@5.7.3)':
     dependencies:
       '@typescript-eslint/types': 7.2.0
       '@typescript-eslint/visitor-keys': 7.2.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       globby: 11.1.0
       is-glob: 4.0.3
       minimatch: 9.0.3
@@ -30112,7 +30120,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.24.1
       '@typescript-eslint/visitor-keys': 8.24.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -30126,7 +30134,7 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.26.1
       '@typescript-eslint/visitor-keys': 8.26.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -30143,7 +30151,7 @@ snapshots:
       '@types/semver': 7.5.8
       '@typescript-eslint/scope-manager': 5.62.0
       '@typescript-eslint/types': 5.62.0
-      '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.7.3)
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.7.3)
       eslint: 8.57.1
       eslint-scope: 5.1.1
       semver: 7.7.1
@@ -30206,7 +30214,7 @@ snapshots:
 
   '@typescript/vfs@1.6.1(typescript@5.7.3)':
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       typescript: 5.7.3
     transitivePeerDependencies:
       - supports-color
@@ -30545,7 +30553,7 @@ snapshots:
     dependencies:
       '@ampproject/remapping': 2.3.0
       '@bcoe/v8-coverage': 0.2.3
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       istanbul-lib-coverage: 3.2.2
       istanbul-lib-report: 3.0.1
       istanbul-lib-source-maps: 5.0.6
@@ -30919,6 +30927,12 @@ snapshots:
   acorn@8.14.0: {}
 
   agent-base@5.1.1: {}
+
+  agent-base@6.0.2:
+    dependencies:
+      debug: 4.4.0(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - supports-color
 
   agent-base@6.0.2(supports-color@9.4.0):
     dependencies:
@@ -31575,7 +31589,7 @@ snapshots:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       http-errors: 2.0.0
       iconv-lite: 0.5.2
       on-finished: 2.4.1
@@ -32869,6 +32883,15 @@ snapshots:
 
   detective-stylus@4.0.0: {}
 
+  detective-typescript@11.2.0:
+    dependencies:
+      '@typescript-eslint/typescript-estree': 5.62.0(typescript@5.7.3)
+      ast-module-types: 5.0.0
+      node-source-walk: 6.0.2
+      typescript: 5.7.3
+    transitivePeerDependencies:
+      - supports-color
+
   detective-typescript@11.2.0(supports-color@9.4.0):
     dependencies:
       '@typescript-eslint/typescript-estree': 5.62.0(supports-color@9.4.0)(typescript@5.7.3)
@@ -32908,7 +32931,7 @@ snapshots:
 
   docker-modem@5.0.6:
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       readable-stream: 3.6.2
       split-ca: 1.0.1
       ssh2: 1.16.0
@@ -33056,7 +33079,7 @@ snapshots:
       figlet: 1.8.0
       fs-extra: 10.1.0
       jest: 29.7.0(@types/node@22.13.10)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.8(@swc/helpers@0.5.15))(@types/node@22.13.10)(typescript@5.7.3))
-      jest-environment-jsdom: 29.7.0(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5)
+      jest-environment-jsdom: 29.7.0(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5)
       jest-watch-typeahead: 2.2.2(jest@29.7.0(@types/node@22.13.10)(babel-plugin-macros@3.1.0)(ts-node@10.9.2(@swc/core@1.11.8(@swc/helpers@0.5.15))(@types/node@22.13.10)(typescript@5.7.3)))
       jpjs: 1.2.1
       lodash.merge: 4.6.2
@@ -33490,7 +33513,7 @@ snapshots:
 
   esbuild-register@3.6.0(esbuild@0.19.12):
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       esbuild: 0.19.12
     transitivePeerDependencies:
       - supports-color
@@ -33860,7 +33883,7 @@ snapshots:
   eslint-import-resolver-typescript@3.8.2(eslint-plugin-import-x@4.6.1(eslint@8.57.1)(typescript@5.7.3))(eslint-plugin-import@2.31.0)(eslint@8.57.1):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       enhanced-resolve: 5.18.1
       eslint: 8.57.1
       get-tsconfig: 4.10.0
@@ -33876,7 +33899,7 @@ snapshots:
   eslint-import-resolver-typescript@3.8.2(eslint-plugin-import-x@4.6.1(eslint@9.22.0(jiti@2.4.2))(typescript@5.7.3))(eslint-plugin-import@2.31.0)(eslint@9.22.0(jiti@2.4.2)):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       enhanced-resolve: 5.18.1
       eslint: 9.22.0(jiti@2.4.2)
       get-tsconfig: 4.10.0
@@ -33892,7 +33915,7 @@ snapshots:
   eslint-import-resolver-typescript@3.8.4(eslint-plugin-import-x@4.6.1(eslint@8.57.1)(typescript@5.7.3))(eslint-plugin-import@2.31.0)(eslint@8.57.1):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       enhanced-resolve: 5.18.1
       eslint: 8.57.1
       get-tsconfig: 4.10.0
@@ -33961,7 +33984,7 @@ snapshots:
       '@types/doctrine': 0.0.9
       '@typescript-eslint/scope-manager': 8.24.1
       '@typescript-eslint/utils': 8.24.1(eslint@8.57.1)(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       doctrine: 3.0.0
       enhanced-resolve: 5.18.1
       eslint: 8.57.1
@@ -33982,7 +34005,7 @@ snapshots:
       '@types/doctrine': 0.0.9
       '@typescript-eslint/scope-manager': 8.24.1
       '@typescript-eslint/utils': 8.24.1(eslint@9.22.0(jiti@2.4.2))(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       doctrine: 3.0.0
       enhanced-resolve: 5.18.1
       eslint: 9.22.0(jiti@2.4.2)
@@ -34293,7 +34316,7 @@ snapshots:
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.6
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       doctrine: 3.0.0
       escape-string-regexp: 4.0.0
       eslint-scope: 7.2.2
@@ -34341,7 +34364,7 @@ snapshots:
       ajv: 6.12.6
       chalk: 4.1.2
       cross-spawn: 7.0.6
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       escape-string-regexp: 4.0.0
       eslint-scope: 8.3.0
       eslint-visitor-keys: 4.2.0
@@ -34665,7 +34688,7 @@ snapshots:
 
   extract-zip@2.0.1:
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       get-stream: 5.2.0
       yauzl: 2.10.0
     optionalDependencies:
@@ -34913,7 +34936,7 @@ snapshots:
 
   finalhandler@2.1.0:
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       encodeurl: 2.0.0
       escape-html: 1.0.3
       on-finished: 2.4.1
@@ -34987,7 +35010,7 @@ snapshots:
 
   follow-redirects@1.15.9(debug@4.4.0):
     optionalDependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
 
   for-each@0.3.5:
     dependencies:
@@ -35204,7 +35227,7 @@ snapshots:
   gel@2.0.1:
     dependencies:
       '@petamoriken/float16': 3.9.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       env-paths: 3.0.0
       semver: 7.7.1
       shell-quote: 1.8.2
@@ -35681,8 +35704,8 @@ snapshots:
   http-proxy-agent@4.0.1:
     dependencies:
       '@tootallnate/once': 1.1.2
-      agent-base: 6.0.2(supports-color@9.4.0)
-      debug: 4.4.0(supports-color@9.4.0)
+      agent-base: 6.0.2
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
     optional: true
@@ -35690,15 +35713,15 @@ snapshots:
   http-proxy-agent@5.0.0:
     dependencies:
       '@tootallnate/once': 2.0.0
-      agent-base: 6.0.2(supports-color@9.4.0)
-      debug: 4.4.0(supports-color@9.4.0)
+      agent-base: 6.0.2
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
   http-proxy-agent@7.0.2:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -35730,7 +35753,14 @@ snapshots:
   https-proxy-agent@4.0.0:
     dependencies:
       agent-base: 5.1.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
+    transitivePeerDependencies:
+      - supports-color
+
+  https-proxy-agent@5.0.1:
+    dependencies:
+      agent-base: 6.0.2
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -35744,7 +35774,7 @@ snapshots:
   https-proxy-agent@7.0.6:
     dependencies:
       agent-base: 7.1.3
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -35779,7 +35809,7 @@ snapshots:
       '@types/tough-cookie': 4.0.5
       axios: 1.8.2(debug@4.4.0)
       camelcase: 6.3.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       dotenv: 16.4.7
       expect: 27.5.1
       extend: 3.0.2
@@ -36321,7 +36351,7 @@ snapshots:
 
   istanbul-lib-source-maps@4.0.1:
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       istanbul-lib-coverage: 3.2.2
       source-map: 0.6.1
     transitivePeerDependencies:
@@ -36330,7 +36360,7 @@ snapshots:
   istanbul-lib-source-maps@5.0.6:
     dependencies:
       '@jridgewell/trace-mapping': 0.3.25
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       istanbul-lib-coverage: 3.2.2
     transitivePeerDependencies:
       - supports-color
@@ -36559,7 +36589,7 @@ snapshots:
       jest-util: 29.7.0
       pretty-format: 29.7.0
 
-  jest-environment-jsdom@29.7.0(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5):
+  jest-environment-jsdom@29.7.0(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5):
     dependencies:
       '@jest/environment': 29.7.0
       '@jest/fake-timers': 29.7.0
@@ -36569,6 +36599,23 @@ snapshots:
       jest-mock: 29.7.0
       jest-util: 29.7.0
       jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5)
+    optionalDependencies:
+      canvas: 2.11.2(encoding@0.1.13)
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
+
+  jest-environment-jsdom@29.7.0(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5):
+    dependencies:
+      '@jest/environment': 29.7.0
+      '@jest/fake-timers': 29.7.0
+      '@jest/types': 29.6.3
+      '@types/jsdom': 20.0.1
+      '@types/node': 22.13.10
+      jest-mock: 29.7.0
+      jest-util: 29.7.0
+      jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5)
     optionalDependencies:
       canvas: 2.11.2(encoding@0.1.13)
     transitivePeerDependencies:
@@ -36889,7 +36936,7 @@ snapshots:
       form-data: 4.0.2
       html-encoding-sniffer: 3.0.0
       http-proxy-agent: 5.0.0
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.16
       parse5: 7.2.1
@@ -36924,7 +36971,7 @@ snapshots:
       form-data: 4.0.2
       html-encoding-sniffer: 3.0.0
       http-proxy-agent: 5.0.0
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       is-potential-custom-element-name: 1.0.1
       nwsapi: 2.2.16
       parse5: 7.2.1
@@ -36945,6 +36992,41 @@ snapshots:
       - supports-color
       - utf-8-validate
     optional: true
+
+  jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5):
+    dependencies:
+      abab: 2.0.6
+      acorn: 8.14.0
+      acorn-globals: 7.0.1
+      cssom: 0.5.0
+      cssstyle: 2.3.0
+      data-urls: 3.0.2
+      decimal.js: 10.5.0
+      domexception: 4.0.0
+      escodegen: 2.1.0
+      form-data: 4.0.2
+      html-encoding-sniffer: 3.0.0
+      http-proxy-agent: 5.0.0
+      https-proxy-agent: 5.0.1
+      is-potential-custom-element-name: 1.0.1
+      nwsapi: 2.2.16
+      parse5: 7.2.1
+      saxes: 6.0.0
+      symbol-tree: 3.2.4
+      tough-cookie: 4.1.4
+      w3c-xmlserializer: 4.0.0
+      webidl-conversions: 7.0.0
+      whatwg-encoding: 2.0.0
+      whatwg-mimetype: 3.0.0
+      whatwg-url: 11.0.0
+      ws: 8.18.0(bufferutil@4.0.9)(utf-8-validate@6.0.5)
+      xml-name-validator: 4.0.0
+    optionalDependencies:
+      canvas: 2.11.2(encoding@0.1.13)
+    transitivePeerDependencies:
+      - bufferutil
+      - supports-color
+      - utf-8-validate
 
   jsesc@2.5.2: {}
 
@@ -37198,7 +37280,7 @@ snapshots:
     dependencies:
       chalk: 5.4.1
       commander: 13.1.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       execa: 8.0.1
       lilconfig: 3.1.3
       listr2: 8.2.5
@@ -37553,7 +37635,7 @@ snapshots:
       cacache: 15.3.0
       http-cache-semantics: 4.1.1
       http-proxy-agent: 4.0.1
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       is-lambda: 1.0.1
       lru-cache: 6.0.0
       minipass: 3.3.6
@@ -37995,7 +38077,7 @@ snapshots:
   micromark@4.0.1:
     dependencies:
       '@types/debug': 4.1.12
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       decode-named-character-reference: 1.0.2
       devlop: 1.1.0
       micromark-core-commonmark: 2.0.2
@@ -38022,7 +38104,7 @@ snapshots:
   microsoft-cognitiveservices-speech-sdk@1.42.0(bufferutil@4.0.9)(utf-8-validate@5.0.10):
     dependencies:
       '@types/webrtc': 0.0.37
-      agent-base: 6.0.2(supports-color@9.4.0)
+      agent-base: 6.0.2
       bent: 7.3.12
       https-proxy-agent: 4.0.0
       uuid: 9.0.1
@@ -38338,7 +38420,7 @@ snapshots:
       content-type: 1.0.5
       cookie: 0.7.2
       cron-parser: 4.9.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       decache: 4.6.2
       dot-prop: 9.0.0
       dotenv: 16.4.7
@@ -38757,8 +38839,6 @@ snapshots:
       '@babel/parser': 7.26.9
 
   node-stream-zip@1.15.0: {}
-
-  node_modules-path@2.0.8: {}
 
   nodemon@3.1.9:
     dependencies:
@@ -39672,6 +39752,23 @@ snapshots:
       tar-fs: 2.1.2
       tunnel-agent: 0.6.0
 
+  precinct@11.0.5:
+    dependencies:
+      '@dependents/detective-less': 4.1.0
+      commander: 10.0.1
+      detective-amd: 5.0.2
+      detective-cjs: 5.0.1
+      detective-es6: 4.0.1
+      detective-postcss: 6.1.3
+      detective-sass: 5.0.3
+      detective-scss: 4.0.3
+      detective-stylus: 4.0.0
+      detective-typescript: 11.2.0
+      module-definition: 5.0.1
+      node-source-walk: 6.0.2
+    transitivePeerDependencies:
+      - supports-color
+
   precinct@11.0.5(supports-color@9.4.0):
     dependencies:
       '@dependents/detective-less': 4.1.0
@@ -40584,7 +40681,7 @@ snapshots:
 
   require-in-the-middle@7.5.1:
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       module-details-from-path: 1.0.3
       resolve: 1.22.10
     transitivePeerDependencies:
@@ -40697,7 +40794,7 @@ snapshots:
 
   rollup-plugin-esbuild@6.2.1(esbuild@0.24.2)(rollup@4.35.0):
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       es-module-lexer: 1.6.0
       esbuild: 0.24.2
       get-tsconfig: 4.10.0
@@ -40907,7 +41004,7 @@ snapshots:
 
   send@1.1.0:
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       destroy: 1.2.0
       encodeurl: 2.0.0
       escape-html: 1.0.3
@@ -41109,7 +41206,7 @@ snapshots:
     dependencies:
       '@kwsites/file-exists': 1.1.1
       '@kwsites/promise-deferred': 1.1.1
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
@@ -41158,8 +41255,8 @@ snapshots:
 
   socks-proxy-agent@6.2.1:
     dependencies:
-      agent-base: 6.0.2(supports-color@9.4.0)
-      debug: 4.4.0(supports-color@9.4.0)
+      agent-base: 6.0.2
+      debug: 4.4.0(supports-color@8.1.1)
       socks: 2.8.4
     transitivePeerDependencies:
       - supports-color
@@ -41666,7 +41763,7 @@ snapshots:
 
   tabtab@3.0.2:
     dependencies:
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       es6-promisify: 6.1.1
       inquirer: 6.5.2
       minimist: 1.2.8
@@ -41819,7 +41916,7 @@ snapshots:
   teeny-request@9.0.0(encoding@0.1.13):
     dependencies:
       http-proxy-agent: 5.0.0
-      https-proxy-agent: 5.0.1(supports-color@9.4.0)
+      https-proxy-agent: 5.0.1
       node-fetch: 2.7.0(encoding@0.1.13)
       stream-events: 1.0.5
       uuid: 9.0.1
@@ -41883,7 +41980,7 @@ snapshots:
   threads@1.7.0:
     dependencies:
       callsites: 3.1.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       is-observable: 2.1.0
       observable-fns: 0.6.1
     optionalDependencies:
@@ -42207,7 +42304,7 @@ snapshots:
       cac: 6.7.14
       chokidar: 4.0.3
       consola: 3.4.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       esbuild: 0.25.0
       joycon: 3.1.1
       picocolors: 1.1.1
@@ -42778,7 +42875,7 @@ snapshots:
   vite-node@1.6.1(@types/node@22.13.10)(terser@5.39.0):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       pathe: 1.1.2
       picocolors: 1.1.1
       vite: 5.4.14(@types/node@22.13.10)(terser@5.39.0)
@@ -42796,7 +42893,7 @@ snapshots:
   vite-node@2.1.9(@types/node@22.13.10)(terser@5.39.0):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       es-module-lexer: 1.6.0
       pathe: 1.1.2
       vite: 5.4.14(@types/node@22.13.10)(terser@5.39.0)
@@ -42814,7 +42911,7 @@ snapshots:
   vite-node@3.0.8(@types/node@22.13.10)(terser@5.39.0):
     dependencies:
       cac: 6.7.14
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       es-module-lexer: 1.6.0
       pathe: 2.0.3
       vite: 5.4.14(@types/node@22.13.10)(terser@5.39.0)
@@ -42834,7 +42931,7 @@ snapshots:
       '@microsoft/api-extractor': 7.43.0(@types/node@22.13.10)
       '@rollup/pluginutils': 5.1.4(rollup@4.35.0)
       '@vue/language-core': 1.8.27(typescript@5.7.3)
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       kolorist: 1.8.0
       magic-string: 0.30.17
       typescript: 5.7.3
@@ -42885,7 +42982,7 @@ snapshots:
       '@vitest/utils': 1.6.1
       acorn-walk: 8.3.4
       chai: 4.5.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       execa: 8.0.1
       local-pkg: 0.5.1
       magic-string: 0.30.17
@@ -42901,10 +42998,47 @@ snapshots:
     optionalDependencies:
       '@edge-runtime/vm': 3.2.0
       '@types/node': 22.13.10
+      jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5)
+    transitivePeerDependencies:
+      - less
+      - lightningcss
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
+  vitest@2.1.9(@edge-runtime/vm@3.2.0)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0):
+    dependencies:
+      '@vitest/expect': 2.1.9
+      '@vitest/mocker': 2.1.9(vite@5.4.14(@types/node@22.13.10)(terser@5.39.0))
+      '@vitest/pretty-format': 2.1.9
+      '@vitest/runner': 2.1.9
+      '@vitest/snapshot': 2.1.9
+      '@vitest/spy': 2.1.9
+      '@vitest/utils': 2.1.9
+      chai: 5.2.0
+      debug: 4.4.0(supports-color@8.1.1)
+      expect-type: 1.1.0
+      magic-string: 0.30.17
+      pathe: 1.1.2
+      std-env: 3.8.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinypool: 1.0.2
+      tinyrainbow: 1.2.0
+      vite: 5.4.14(@types/node@22.13.10)(terser@5.39.0)
+      vite-node: 2.1.9(@types/node@22.13.10)(terser@5.39.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@edge-runtime/vm': 3.2.0
+      '@types/node': 22.13.10
       jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5)
     transitivePeerDependencies:
       - less
       - lightningcss
+      - msw
       - sass
       - sass-embedded
       - stylus
@@ -42922,7 +43056,7 @@ snapshots:
       '@vitest/spy': 2.1.9
       '@vitest/utils': 2.1.9
       chai: 5.2.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       expect-type: 1.1.0
       magic-string: 0.30.17
       pathe: 1.1.2
@@ -42959,7 +43093,7 @@ snapshots:
       '@vitest/spy': 2.1.9
       '@vitest/utils': 2.1.9
       chai: 5.2.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       expect-type: 1.1.0
       magic-string: 0.30.17
       pathe: 1.1.2
@@ -42973,6 +43107,44 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@edge-runtime/vm': 3.2.0
+      '@types/node': 22.13.10
+      jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5)
+    transitivePeerDependencies:
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - supports-color
+      - terser
+
+  vitest@3.0.8(@edge-runtime/vm@3.2.0)(@types/debug@4.1.12)(@types/node@22.13.10)(jsdom@20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5))(terser@5.39.0):
+    dependencies:
+      '@vitest/expect': 3.0.8
+      '@vitest/mocker': 3.0.8(vite@5.4.14(@types/node@22.13.10)(terser@5.39.0))
+      '@vitest/pretty-format': 3.0.8
+      '@vitest/runner': 3.0.8
+      '@vitest/snapshot': 3.0.8
+      '@vitest/spy': 3.0.8
+      '@vitest/utils': 3.0.8
+      chai: 5.2.0
+      debug: 4.4.0(supports-color@8.1.1)
+      expect-type: 1.1.0
+      magic-string: 0.30.17
+      pathe: 2.0.3
+      std-env: 3.8.0
+      tinybench: 2.9.0
+      tinyexec: 0.3.2
+      tinypool: 1.0.2
+      tinyrainbow: 2.0.0
+      vite: 5.4.14(@types/node@22.13.10)(terser@5.39.0)
+      vite-node: 3.0.8(@types/node@22.13.10)(terser@5.39.0)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      '@edge-runtime/vm': 3.2.0
+      '@types/debug': 4.1.12
       '@types/node': 22.13.10
       jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5)
     transitivePeerDependencies:
@@ -42996,7 +43168,7 @@ snapshots:
       '@vitest/spy': 3.0.8
       '@vitest/utils': 3.0.8
       chai: 5.2.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
       expect-type: 1.1.0
       magic-string: 0.30.17
       pathe: 2.0.3
@@ -43012,7 +43184,7 @@ snapshots:
       '@edge-runtime/vm': 3.2.0
       '@types/debug': 4.1.12
       '@types/node': 22.13.10
-      jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2(encoding@0.1.13))(utf-8-validate@6.0.5)
+      jsdom: 20.0.3(bufferutil@4.0.9)(canvas@2.11.2)(utf-8-validate@6.0.5)
     transitivePeerDependencies:
       - less
       - lightningcss
@@ -43056,7 +43228,7 @@ snapshots:
     dependencies:
       chalk: 4.1.2
       commander: 9.5.0
-      debug: 4.4.0(supports-color@9.4.0)
+      debug: 4.4.0(supports-color@8.1.1)
     transitivePeerDependencies:
       - supports-color
 
