@@ -317,7 +317,4 @@ server.addTool({
   },
 });
 
-console.error('Starting server...');
-void server.start({
-  transportType: 'stdio',
-});
+export { server };
