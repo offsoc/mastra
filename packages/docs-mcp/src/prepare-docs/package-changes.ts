@@ -1,7 +1,16 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const PACKAGES_SOURCE = '../../packages';
+// Define all source directories to scan
+const SOURCE_DIRS = [
+  '../../packages',
+  '../../speech',
+  '../../stores',
+  '../../voice',
+  '../../integrations',
+  '../../deployers',
+  '../../client-sdks',
+];
 const CHANGELOGS_DEST = './.docs/organized/changelogs';
 const MAX_LINES = 300;
 
@@ -18,10 +27,48 @@ function truncateContent(content: string, maxLines: number): string {
 }
 
 /**
+ * Process a single package directory
+ */
+async function processPackageDir(packagePath: string, outputDir: string): Promise<void> {
+  // Try to read package.json first
+  let packageName: string;
+  try {
+    const packageJsonPath = path.join(packagePath, 'package.json');
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
+    packageName = packageJson.name;
+    if (!packageName) {
+      console.log(`Skipping ${path.basename(packagePath)}: No package name found in package.json`);
+      return;
+    }
+  } catch {
+    console.log(`Skipping ${path.basename(packagePath)}: No valid package.json found`);
+    return;
+  }
+
+  // Try to read CHANGELOG.md
+  try {
+    const changelogPath = path.join(packagePath, 'CHANGELOG.md');
+    let changelog: string;
+    try {
+      changelog = await fs.readFile(changelogPath, 'utf-8');
+      changelog = truncateContent(changelog, MAX_LINES);
+    } catch {
+      changelog = 'No changelog available.';
+    }
+
+    // Write to output file using URL-encoded package name
+    const outputFile = path.join(outputDir, `${encodeURIComponent(packageName)}.md`);
+    await fs.writeFile(outputFile, changelog, 'utf-8');
+    console.log(`Generated changelog for ${packageName}`);
+  } catch (error) {
+    console.error(`Error processing changelog for ${packageName}:`, error);
+  }
+}
+
+/**
  * Scans package directories and creates organized changelog files
  */
 export async function preparePackageChanges() {
-  const packagesDir = path.resolve(process.cwd(), PACKAGES_SOURCE);
   const outputDir = path.resolve(process.cwd(), CHANGELOGS_DEST);
 
   // Clean up existing output directory
@@ -34,47 +81,26 @@ export async function preparePackageChanges() {
   // Ensure output directory exists
   await fs.mkdir(outputDir, { recursive: true });
 
-  // Get all package directories
-  const entries = await fs.readdir(packagesDir, { withFileTypes: true });
-  const packageDirs = entries
-    .filter(entry => entry.isDirectory())
-    .filter(entry => entry.name !== 'docs-mcp' && entry.name !== '_config');
-
-  for (const dir of packageDirs) {
-    const packagePath = path.join(packagesDir, dir.name);
+  // Process each source directory
+  for (const sourceDir of SOURCE_DIRS) {
+    const fullSourceDir = path.resolve(process.cwd(), sourceDir);
     
-    // Try to read package.json first
-    let packageName: string;
     try {
-      const packageJsonPath = path.join(packagePath, 'package.json');
-      const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
-      packageName = packageJson.name;
-      if (!packageName) {
-        console.log(`Skipping ${dir.name}: No package name found in package.json`);
-        continue;
-      }
-    } catch {
-      console.log(`Skipping ${dir.name}: No valid package.json found`);
-      continue;
-    }
+      // Check if directory exists before trying to read it
+      await fs.access(fullSourceDir);
+      
+      const entries = await fs.readdir(fullSourceDir, { withFileTypes: true });
+      const packageDirs = entries
+        .filter(entry => entry.isDirectory())
+        .filter(entry => entry.name !== 'docs-mcp' && entry.name !== '_config');
 
-    // Try to read CHANGELOG.md
-    try {
-      const changelogPath = path.join(packagePath, 'CHANGELOG.md');
-      let changelog: string;
-      try {
-        changelog = await fs.readFile(changelogPath, 'utf-8');
-        changelog = truncateContent(changelog, MAX_LINES);
-      } catch {
-        changelog = 'No changelog available.';
+      // Process each package directory
+      for (const dir of packageDirs) {
+        const packagePath = path.join(fullSourceDir, dir.name);
+        await processPackageDir(packagePath, outputDir);
       }
-
-      // Write to output file using URL-encoded package name
-      const outputFile = path.join(outputDir, `${encodeURIComponent(packageName)}.md`);
-      await fs.writeFile(outputFile, changelog, 'utf-8');
-      console.log(`Generated changelog for ${packageName}`);
     } catch (error) {
-      console.error(`Error processing changelog for ${packageName}:`, error);
+      console.log(`Skipping ${sourceDir}: Directory not found or not accessible`);
     }
   }
 } 
