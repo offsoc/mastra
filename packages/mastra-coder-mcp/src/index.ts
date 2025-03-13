@@ -2,14 +2,14 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { FastMCP } from 'fastmcp';
-import { z } from 'zod';
 import { JSDOM } from 'jsdom';
+import { z } from 'zod';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.error('Starting Mastra Documentation Server...');
-console.error('Docs base dir:', path.join(__dirname, '../.docs/raw/'));
+// console.error('Starting Mastra Documentation Server...');
+// console.error('Docs base dir:', path.join(__dirname, '../.docs/raw/'));
 
 const server = new FastMCP({
   name: 'Mastra Documentation Server',
@@ -20,7 +20,7 @@ const docsBaseDir = path.join(__dirname, '../.docs/raw/');
 
 // Helper function to fetch and parse blog posts
 async function fetchBlogPosts(): Promise<Array<{ title: string; date: string; url: string }>> {
-  console.error('Fetching blog posts...');
+  // console.error('Fetching blog posts...');
   try {
     const response = await fetch('https://mastra.ai/blog');
     const html = await response.text();
@@ -47,17 +47,17 @@ async function fetchBlogPosts(): Promise<Array<{ title: string; date: string; ur
       }
     }
 
-    console.error(`Found ${posts.length} blog posts`);
+    // console.error(`Found ${posts.length} blog posts`);
     return posts;
   } catch (error) {
-    console.error('Error fetching blog posts:', error);
+    // console.error('Error fetching blog posts:', error);
     throw new Error('Failed to fetch blog posts');
   }
 }
 
 // Helper function to fetch and convert a blog post to markdown
 async function fetchBlogPost(url: string): Promise<string> {
-  console.error('Fetching blog post:', url);
+  // console.error('Fetching blog post:', url);
   try {
     const response = await fetch(url);
     const html = await response.text();
@@ -140,17 +140,17 @@ async function fetchBlogPost(url: string): Promise<string> {
       .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
       .trim();
 
-    console.error('Successfully converted blog post to markdown');
+    // console.error('Successfully converted blog post to markdown');
     return markdown;
   } catch (error) {
-    console.error('Error fetching blog post:', error);
+    // console.error('Error fetching blog post:', error);
     throw new Error(`Failed to fetch blog post: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 // Helper function to list contents of a directory
 async function listDirContents(dirPath: string): Promise<{ dirs: string[]; files: string[] }> {
-  console.error('Listing contents of:', dirPath);
+  // console.error('Listing contents of:', dirPath);
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   const dirs: string[] = [];
   const files: string[] = [];
@@ -163,8 +163,8 @@ async function listDirContents(dirPath: string): Promise<{ dirs: string[]; files
     }
   }
 
-  console.error('Found directories:', dirs);
-  console.error('Found files:', files);
+  // console.error('Found directories:', dirs);
+  // console.error('Found files:', files);
 
   return {
     dirs: dirs.sort(),
@@ -174,14 +174,14 @@ async function listDirContents(dirPath: string): Promise<{ dirs: string[]; files
 
 // Helper function to read MDX files from a path
 async function readMdxContent(docPath: string): Promise<string> {
-  console.error('Reading content for path:', docPath);
+  // console.error('Reading content for path:', docPath);
   const fullPath = path.join(docsBaseDir, docPath);
-  console.error('Full path:', fullPath);
+  // console.error('Full path:', fullPath);
 
   // Check if path exists
   try {
     const stats = await fs.stat(fullPath);
-    console.error('Path exists, isDirectory:', stats.isDirectory());
+    // console.error('Path exists, isDirectory:', stats.isDirectory());
 
     if (stats.isDirectory()) {
       const { dirs, files } = await listDirContents(fullPath);
@@ -201,10 +201,10 @@ async function readMdxContent(docPath: string): Promise<string> {
       ].join('\n');
 
       // Append all file contents
-      console.error(`Reading ${files.length} files from directory`);
+      // console.error(`Reading ${files.length} files from directory`);
       let fileContents = '';
       for (const file of files) {
-        console.error(`Reading file: ${file}`);
+        // console.error(`Reading file: ${file}`);
         const filePath = path.join(fullPath, file);
         const content = await fs.readFile(filePath, 'utf-8');
         fileContents += `\n\n# ${file}\n\n${content}`;
@@ -214,25 +214,25 @@ async function readMdxContent(docPath: string): Promise<string> {
     }
 
     // If it's a file, just read it
-    console.error('Reading single file');
+    // console.error('Reading single file');
     return fs.readFile(fullPath, 'utf-8');
   } catch (error) {
-    console.error('Error reading path:', error);
+    // console.error('Error reading path:', error);
     throw new Error(`Path not found: ${docPath}`);
   }
 }
 
 // Get initial directory listing for the description
-console.error('Getting initial directory listing...');
+// console.error('Getting initial directory listing...');
 const { dirs, files } = await listDirContents(docsBaseDir);
 
 // Get reference directory contents if it exists
 let referenceDirs: string[] = [];
 if (dirs.includes('reference/')) {
-  console.error('Getting reference directory contents...');
+  // console.error('Getting reference directory contents...');
   const { dirs: refDirs } = await listDirContents(path.join(docsBaseDir, 'reference'));
   referenceDirs = refDirs.map(d => `reference/${d}`);
-  console.error('Reference subdirectories:', referenceDirs);
+  // console.error('Reference subdirectories:', referenceDirs);
 }
 
 const availablePaths = [
@@ -250,25 +250,100 @@ const availablePaths = [
   .filter(Boolean)
   .join('\n');
 
-console.error('Initial directory listing complete');
-console.error(availablePaths);
+// console.error('Initial directory listing complete');
+// console.error(availablePaths);
+
+// Helper function to find nearest existing directory and its contents
+async function findNearestDirectory(docPath: string): Promise<string> {
+  // Split path into parts and try each parent directory
+  const parts = docPath.split('/');
+  
+  while (parts.length > 0) {
+    const testPath = parts.join('/');
+    try {
+      const fullPath = path.join(docsBaseDir, testPath);
+      const stats = await fs.stat(fullPath);
+      
+      if (stats.isDirectory()) {
+        const { dirs, files } = await listDirContents(fullPath);
+        return [
+          `Path "${docPath}" not found.`,
+          `Here are the available paths in "${testPath}":`,
+          '',
+          dirs.length > 0 ? 'Directories:' : 'No subdirectories.',
+          ...dirs.map(d => `- ${testPath}/${d}`),
+          '',
+          files.length > 0 ? 'Files:' : 'No files.',
+          ...files.map(f => `- ${testPath}/${f}`),
+        ].join('\n');
+      }
+    } catch {
+      // Directory doesn't exist, try parent
+    }
+    parts.pop();
+  }
+  
+  // If no parent directories found, return root listing
+  return [
+    `Path "${docPath}" not found.`,
+    'Here are all available paths:',
+    '',
+    availablePaths
+  ].join('\n');
+}
 
 server.addTool({
   name: 'mastraDocs',
   description:
-    'Get Mastra.ai documentation. Request a path to explore the docs. Reference directories contain API documentation. Other directories contain guides and examples. The user doesn\'t know about files and directories. This is your internal knowledgebase the user can\'t see directly. If the user wants to know about a specific feature check general docs as well as reference docs for that feature. For example with evals check in evals/ and in reference/evals/. Provide code examples so the user understands. If packages need to be installed provide the pnpm command to install them, for example if you see `import x from "@mastra/x"` then tell the user that package must be installed to use it and provide the command. If you build a URL from the path, only paths ending in .mdx exist. For example with evals: https://mastra.ai/docs/evals/ does not exist but https://mastra.ai/docs/evals/00-overview does.',
+    'Get Mastra.ai documentation. Request one or more paths to explore the docs. Reference directories contain API documentation. Other directories contain guides and examples. The user doesn\'t know about files and directories. This is your internal knowledgebase the user can\'t see directly. If the user wants to know about a specific feature check general docs as well as reference docs for that feature. For example with evals check in evals/ and in reference/evals/. Provide code examples so the user understands. If you build a URL from the path, only paths ending in .mdx exist. Note that docs about MCP are currently in reference/tools/. Be concise with your answers. The user will ask for more info. IMPORTANT: If packages need to be installed provide the pnpm command to install them, for example if you see `import X from "@mastra/$PACKAGE_NAME"` in an example, show an install command.',
 
   parameters: z.object({
-    path: z.string().describe(`The documentation path to fetch\nAvailable paths:\n${availablePaths}`),
+    paths: z
+      .array(z.string())
+      .min(1)
+      .describe(`One or more documentation paths to fetch\nAvailable paths:\n${availablePaths}`),
   }),
   execute: async args => {
-    console.error('mastraDocs tool called with args:', args);
     try {
-      const content = await readMdxContent(args.path);
-      console.error('Successfully read content, length:', content.length);
-      return content;
+      const results = await Promise.all(
+        args.paths.map(async path => {
+          try {
+            const content = await readMdxContent(path);
+            return {
+              path,
+              content,
+              error: null,
+            };
+          } catch (error) {
+            if (error instanceof Error && error.message.includes('Path not found')) {
+              const suggestions = await findNearestDirectory(path);
+              return {
+                path,
+                content: null,
+                error: suggestions,
+              };
+            }
+            return {
+              path,
+              content: null,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            };
+          }
+        }),
+      );
+
+      // Format the results
+      const output = results
+        .map(result => {
+          if (result.error) {
+            return `## ${result.path}\n\n${result.error}\n\n---\n`;
+          }
+          return `## ${result.path}\n\n${result.content}\n\n---\n`;
+        })
+        .join('\n');
+
+      return output;
     } catch (error) {
-      console.error('Error in mastraDocs tool:', error);
       if (error instanceof Error) {
         throw new Error(`Failed to fetch documentation: ${error.message}`);
       }
@@ -289,26 +364,26 @@ server.addTool({
       ),
   }),
   execute: async args => {
-    console.error('mastraBlog tool called with args:', args);
+    // console.error('mastraBlog tool called with args:', args);
     try {
       if (args.url !== `/blog`) {
-        console.error('Fetching specific blog post:', args.url);
+        // console.error('Fetching specific blog post:', args.url);
         const content = await fetchBlogPost(args.url);
-        console.error('Successfully fetched blog post');
+        // console.error('Successfully fetched blog post');
         return content;
       } else {
-        console.error('Fetching blog post list');
+        // console.error('Fetching blog post list');
         const posts = await fetchBlogPosts();
         const output = [
           'Mastra.ai Blog Posts:',
           '',
           ...posts.map(post => `- ${post.title} (${post.date})\n  ${post.url}`),
         ].join('\n');
-        console.error('Successfully fetched blog posts');
+        // console.error('Successfully fetched blog posts');
         return output;
       }
     } catch (error) {
-      console.error('Error in mastraBlog tool:', error);
+      // console.error('Error in mastraBlog tool:', error);
       if (error instanceof Error) {
         throw new Error(`Failed to fetch blog content: ${error.message}`);
       }
