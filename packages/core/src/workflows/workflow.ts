@@ -345,13 +345,55 @@ export class Workflow<
     return this.loop(applyOperator, condition, fallbackStep, 'until');
   }
 
-  if<TStep extends StepAction<any, any, any, any>>(condition: StepConfig<TStep, any, any, TTriggerSchema>['when']) {
+  if<TStep extends StepAction<any, any, any, any>>(
+    condition: StepConfig<TStep, any, any, TTriggerSchema>['when'],
+    ifStep?: TStep | Workflow,
+    elseStep?: TStep | Workflow,
+  ) {
     const lastStep = this.#steps[this.#lastStepStack[this.#lastStepStack.length - 1] ?? ''];
     if (!lastStep) {
       throw new Error('Condition requires a step to be executed after');
     }
 
     this.after(lastStep);
+
+    if (ifStep) {
+      const _ifStep = isWorkflow(ifStep) ? workflowToStep(ifStep) : ifStep;
+
+      this.step(_ifStep, {
+        when: condition,
+      });
+
+      if (elseStep) {
+        const _elseStep = isWorkflow(elseStep) ? workflowToStep(elseStep) : elseStep;
+        this.step(_elseStep, {
+          when:
+            typeof condition === 'function'
+              ? async payload => {
+                  // @ts-ignore
+                  const result = await condition(payload);
+                  return !result;
+                }
+              : { not: condition },
+        });
+
+        this.after([_ifStep, _elseStep]);
+      } else {
+        this.after(_ifStep);
+      }
+
+      this.step(
+        new Step({
+          id: `${lastStep.id}_if_else`,
+          execute: async ({ context }) => {
+            console.log('if else stop step');
+            return { executed: true };
+          },
+        }),
+      );
+
+      return this;
+    }
 
     const ifStepKey = `__${lastStep.id}_if`;
     this.step(
