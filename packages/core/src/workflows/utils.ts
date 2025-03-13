@@ -1,4 +1,5 @@
-import type { StepResult, VariableReference } from './types';
+import type { StepAction, StepResult, VariableReference } from './types';
+import type { Workflow } from './workflow';
 
 export function isErrorEvent(stateEvent: any): stateEvent is {
   type: `xstate.error.actor.${string}`;
@@ -162,4 +163,24 @@ export function getResultActivePaths(state: {
     acc.set(curr.stepId, entry);
     return acc;
   }, new Map<string, { status: string; suspendPayload?: any }>());
+}
+
+export function isWorkflow(step: Step<any, any, any> | Workflow<any, any>): step is Workflow<any, any> {
+  // @ts-ignore
+  return !!step?.name;
+}
+
+export function workflowToStep(workflow: Workflow<any, any>): StepAction<any, any, any, any> {
+  return {
+    id: workflow.name,
+    execute: async ({ context, suspend }) => {
+      const run = workflow.createRun();
+      const { results, activePaths } = await run.start();
+      if (activePaths.size > 0) {
+        // TODO: check and suspend
+      }
+
+      return results;
+    },
+  };
 }

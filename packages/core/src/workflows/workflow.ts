@@ -21,7 +21,7 @@ import type {
   WorkflowRunState,
 } from './types';
 import { WhenConditionReturnValue } from './types';
-import { isVariableReference, updateStepInHierarchy } from './utils';
+import { isVariableReference, isWorkflow, updateStepInHierarchy, workflowToStep } from './utils';
 import type { WorkflowResultReturn } from './workflow-instance';
 import { WorkflowInstance } from './workflow-instance';
 
@@ -71,7 +71,7 @@ export class Workflow<
     TStep extends StepAction<any, any, any, any>,
     CondStep extends StepVariableType<any, any, any, any>,
     VarStep extends StepVariableType<any, any, any, any>,
-  >(step: TStep, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
+  >(step: TStep | Workflow<any, any>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
     const { variables = {} } = config || {};
 
     const requiredData: Record<string, any> = {};
@@ -84,6 +84,11 @@ export class Workflow<
     }
 
     const stepKey = this.#makeStepKey(step);
+
+    if (isWorkflow(step)) {
+      const wf = step;
+      step = workflowToStep(wf) as TStep;
+    }
 
     const graphEntry: StepNode = {
       step,
@@ -118,8 +123,12 @@ export class Workflow<
     return this;
   }
 
-  #makeStepKey(step: Step<any, any, any>) {
+  #makeStepKey(step: Step<any, any, any> | Workflow<any, any>) {
     // return `${step.id}${this.#delimiter}${Object.keys(this.steps2).length}`;
+    if (isWorkflow(step)) {
+      return `${step.name}`;
+    }
+
     return `${step.id}`;
   }
 
@@ -127,7 +136,7 @@ export class Workflow<
     TStep extends StepAction<any, any, any, any>,
     CondStep extends StepVariableType<any, any, any, any>,
     VarStep extends StepVariableType<any, any, any, any>,
-  >(step: TStep, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
+  >(step: TStep | Workflow<any, any>, config?: StepConfig<TStep, CondStep, VarStep, TTriggerSchema>) {
     const { variables = {} } = config || {};
 
     const requiredData: Record<string, any> = {};
@@ -141,6 +150,11 @@ export class Workflow<
 
     const lastStepKey = this.#lastStepStack[this.#lastStepStack.length - 1];
     const stepKey = this.#makeStepKey(step);
+
+    if (isWorkflow(step)) {
+      const wf = step;
+      step = workflowToStep(wf) as TStep;
+    }
 
     const graphEntry: StepNode = {
       step,
