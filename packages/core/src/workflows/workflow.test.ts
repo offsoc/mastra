@@ -2504,6 +2504,9 @@ describe('Workflow', async () => {
         const otherVal = context.getStepResult('other')?.other ?? 0;
         return { finalValue: startVal + otherVal };
       });
+      const last = vi.fn().mockImplementation(async ({ context }) => {
+        return { success: true };
+      });
       const finalStep = new Step({
         id: 'final',
         description: 'Final step that prints the result',
@@ -2522,15 +2525,13 @@ describe('Workflow', async () => {
       counterWorkflow
         .step(wfA)
         .step(wfB)
-        // .after([wfA, wfB])
-        // .step(
-        //   new Step({
-        //     id: 'last-step',
-        //     async execute({ context }) {
-        //       return { success: true };
-        //     },
-        //   }),
-        // )
+        .after([wfA, wfB])
+        .step(
+          new Step({
+            id: 'last-step',
+            execute: last,
+          }),
+        )
         .commit();
 
       const run = counterWorkflow.createRun();
@@ -2539,6 +2540,7 @@ describe('Workflow', async () => {
       expect(start).toHaveBeenCalledTimes(2);
       expect(other).toHaveBeenCalledTimes(1);
       expect(final).toHaveBeenCalledTimes(2);
+      expect(last).toHaveBeenCalledTimes(1);
       // @ts-ignore
       expect(results['nested-workflow-a'].output).toEqual({
         start: { output: { newValue: 1 }, status: 'success' },
@@ -2550,6 +2552,11 @@ describe('Workflow', async () => {
       expect(results['nested-workflow-b'].output).toEqual({
         start: { output: { newValue: 1 }, status: 'success' },
         final: { output: { finalValue: 1 }, status: 'success' },
+      });
+
+      expect(results['last-step']).toEqual({
+        output: { success: true },
+        status: 'success',
       });
     });
   });

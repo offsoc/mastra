@@ -122,9 +122,10 @@ export class Workflow<
     return this;
   }
 
-  #makeStepKey(step: Step<any, any, any>) {
+  #makeStepKey(step: Step<any, any, any> | Workflow<any, any>) {
     // return `${step.id}${this.#delimiter}${Object.keys(this.steps2).length}`;
-    return `${step.id}`;
+    // @ts-ignore
+    return `${step.id ?? step.name}`;
   }
 
   then<
@@ -399,7 +400,7 @@ export class Workflow<
     return this;
   }
 
-  after<TStep extends StepAction<any, any, any, any>>(steps: TStep | TStep[]) {
+  after<TStep extends StepAction<any, any, any, any>>(steps: TStep | TStep[] | Workflow | Workflow[]) {
     const stepsArray = Array.isArray(steps) ? steps : [steps];
     const stepKeys = stepsArray.map(step => this.#makeStepKey(step));
 
