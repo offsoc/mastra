@@ -2779,7 +2779,7 @@ describe('Workflow', async () => {
     });
 
     describe('new if else branching syntax with nested workflows', () => {
-      it.only('should execute if-branch', async () => {
+      it('should execute if-branch', async () => {
         const start = vi.fn().mockImplementation(async ({ context }) => {
           // Get the current value (either from trigger or previous increment)
           const currentValue =
@@ -2875,20 +2875,247 @@ describe('Workflow', async () => {
           status: 'skipped',
         });
 
-        // // @ts-ignore
-        // expect(results['nested-workflow-b'].output).toEqual({
-        //   start: { output: { newValue: 1 }, status: 'success' },
-        //   final: { output: { finalValue: 1 }, status: 'success' },
-        //   __start_else: {
-        //     output: {
-        //       executed: true,
-        //     },
-        //     status: 'success',
-        //   },
-        //   __start_if: {
-        //     status: 'skipped',
-        //   },
-        // });
+        expect(results['first-step']).toEqual({
+          output: { success: true },
+          status: 'success',
+        });
+
+        expect(results['last-step']).toEqual({
+          output: { success: true },
+          status: 'success',
+        });
+      });
+
+      it('should execute else-branch', async () => {
+        const start = vi.fn().mockImplementation(async ({ context }) => {
+          // Get the current value (either from trigger or previous increment)
+          const currentValue =
+            context.getStepResult('start')?.newValue || context.getStepResult('trigger')?.startValue || 0;
+
+          // Increment the value
+          const newValue = currentValue + 1;
+
+          return { newValue };
+        });
+        const startStep = new Step({
+          id: 'start',
+          description: 'Increments the current value by 1',
+          outputSchema: z.object({
+            newValue: z.number(),
+          }),
+          execute: start,
+        });
+
+        const other = vi.fn().mockImplementation(async ({ context }) => {
+          return { other: 26 };
+        });
+        const otherStep = new Step({
+          id: 'other',
+          description: 'Other step',
+          execute: other,
+        });
+
+        const final = vi.fn().mockImplementation(async ({ context }) => {
+          const startVal = context.getStepResult('start')?.newValue ?? 0;
+          const otherVal = context.getStepResult('other')?.other ?? 0;
+          return { finalValue: startVal + otherVal };
+        });
+        const first = vi.fn().mockImplementation(async ({ context }) => {
+          return { success: true };
+        });
+        const last = vi.fn().mockImplementation(async ({ context }) => {
+          return { success: true };
+        });
+        const finalStep = new Step({
+          id: 'final',
+          description: 'Final step that prints the result',
+          execute: final,
+        });
+
+        const counterWorkflow = new Workflow({
+          name: 'counter-workflow',
+          triggerSchema: z.object({
+            startValue: z.number(),
+          }),
+        });
+
+        const wfA = new Workflow({ name: 'nested-workflow-a' })
+          .step(startStep)
+          .then(otherStep)
+          .then(finalStep)
+          .commit();
+        const wfB = new Workflow({ name: 'nested-workflow-b' }).step(startStep).then(finalStep).commit();
+
+        counterWorkflow
+          .step(
+            new Step({
+              id: 'first-step',
+              execute: first,
+            }),
+          )
+          .if(async ({ context }) => false, wfA, wfB)
+          .then(
+            new Step({
+              id: 'last-step',
+              execute: last,
+            }),
+          )
+          .commit();
+
+        const run = counterWorkflow.createRun();
+        const { results } = await run.start({ triggerData: { startValue: 1 } });
+        console.log(results);
+
+        expect(start).toHaveBeenCalledTimes(1);
+        expect(other).toHaveBeenCalledTimes(0);
+        expect(final).toHaveBeenCalledTimes(1);
+        expect(first).toHaveBeenCalledTimes(1);
+        expect(last).toHaveBeenCalledTimes(1);
+
+        expect(results['nested-workflow-a']).toEqual({
+          status: 'skipped',
+        });
+
+        // @ts-ignore
+        expect(results['nested-workflow-b'].output).toEqual({
+          start: { output: { newValue: 1 }, status: 'success' },
+          final: { output: { finalValue: 1 }, status: 'success' },
+        });
+
+        expect(results['first-step']).toEqual({
+          output: { success: true },
+          status: 'success',
+        });
+
+        expect(results['last-step']).toEqual({
+          output: { success: true },
+          status: 'success',
+        });
+      });
+
+      it('should execute nested else and if-branch', async () => {
+        const start = vi.fn().mockImplementation(async ({ context }) => {
+          // Get the current value (either from trigger or previous increment)
+          const currentValue =
+            context.getStepResult('start')?.newValue || context.getStepResult('trigger')?.startValue || 0;
+
+          // Increment the value
+          const newValue = currentValue + 1;
+
+          return { newValue };
+        });
+        const startStep = new Step({
+          id: 'start',
+          description: 'Increments the current value by 1',
+          outputSchema: z.object({
+            newValue: z.number(),
+          }),
+          execute: start,
+        });
+
+        const other = vi.fn().mockImplementation(async ({ context }) => {
+          return { other: 26 };
+        });
+        const otherStep = new Step({
+          id: 'other',
+          description: 'Other step',
+          execute: other,
+        });
+
+        const final = vi.fn().mockImplementation(async ({ context }) => {
+          const startVal = context.getStepResult('start')?.newValue ?? 0;
+          const otherVal = context.getStepResult('other')?.other ?? 0;
+          return { finalValue: startVal + otherVal };
+        });
+        const first = vi.fn().mockImplementation(async ({ context }) => {
+          return { success: true };
+        });
+        const last = vi.fn().mockImplementation(async ({ context }) => {
+          return { success: true };
+        });
+        const finalStep = new Step({
+          id: 'final',
+          description: 'Final step that prints the result',
+          execute: final,
+        });
+
+        const counterWorkflow = new Workflow({
+          name: 'counter-workflow',
+          triggerSchema: z.object({
+            startValue: z.number(),
+          }),
+        });
+
+        const wfA = new Workflow({ name: 'nested-workflow-a' })
+          .step(startStep)
+          .then(otherStep)
+          .then(finalStep)
+          .commit();
+        const wfB = new Workflow({ name: 'nested-workflow-b' })
+          .step(startStep)
+          .if(
+            async () => true,
+            new Workflow({ name: 'nested-workflow-c' }).step(otherStep),
+            new Workflow({ name: 'nested-workflow-d' }).step(otherStep),
+          )
+          .then(finalStep)
+          .commit();
+
+        counterWorkflow
+          .step(
+            new Step({
+              id: 'first-step',
+              execute: first,
+            }),
+          )
+          .if(async ({ context }) => false, wfA, wfB)
+          .then(
+            new Step({
+              id: 'last-step',
+              execute: last,
+            }),
+          )
+          .commit();
+
+        const run = counterWorkflow.createRun();
+        const { results } = await run.start({ triggerData: { startValue: 1 } });
+        console.log(results);
+
+        expect(start).toHaveBeenCalledTimes(1);
+        expect(other).toHaveBeenCalledTimes(1);
+        expect(final).toHaveBeenCalledTimes(1);
+        expect(first).toHaveBeenCalledTimes(1);
+        expect(last).toHaveBeenCalledTimes(1);
+
+        expect(results['nested-workflow-a']).toEqual({
+          status: 'skipped',
+        });
+
+        // @ts-ignore
+        expect(results['nested-workflow-b'].output).toEqual({
+          start: { output: { newValue: 1 }, status: 'success' },
+          final: { output: { finalValue: 1 }, status: 'success' },
+          'nested-workflow-c': {
+            output: {
+              other: {
+                output: {
+                  other: 26,
+                },
+                status: 'success',
+              },
+            },
+            status: 'success',
+          },
+          'nested-workflow-d': {
+            status: 'skipped',
+          },
+          start_if_else: {
+            output: {
+              executed: true,
+            },
+            status: 'success',
+          },
+        });
 
         expect(results['first-step']).toEqual({
           output: { success: true },
