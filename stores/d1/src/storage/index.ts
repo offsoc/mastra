@@ -1102,10 +1102,15 @@ export class D1Store extends MastraStorage {
     const fullTableName = this.getTableName(TABLE_EVALS);
 
     try {
-      const query = createSqlBuilder().select('*').from(fullTableName).where('agent_name = ?', agentName);
+      let query = createSqlBuilder().select('*').from(fullTableName).where('agent_name = ?', agentName);
 
-      if (type) {
-        query.andWhere('type = ?', type);
+      // Match LibSQL implementation for type filtering
+      if (type === 'test') {
+        // For 'test' type: test_info must exist and have a testPath property
+        query = query.andWhere("test_info IS NOT NULL AND json_extract(test_info, '$.testPath') IS NOT NULL");
+      } else if (type === 'live') {
+        // For 'live' type: test_info is NULL or doesn't have a testPath property
+        query = query.andWhere("(test_info IS NULL OR json_extract(test_info, '$.testPath') IS NULL)");
       }
 
       query.orderBy('created_at', 'DESC');

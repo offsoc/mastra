@@ -27,6 +27,7 @@
     "@cloudflare/workers-types": "^4.20250311.0",
     "@microsoft/api-extractor": "^7.49.2",
     "@types/node": "^22.13.1",
+    "miniflare": "^3.20250310.0",
     "tsup": "^8.0.1",
     "typescript": "^5.7.3",
     "vitest": "^3.0.4"

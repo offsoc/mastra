@@ -13,8 +13,12 @@ export class SqlBuilder {
   private whereAdded: boolean = false;
 
   // Basic query building
-  select(columns: string | string[]): SqlBuilder {
-    this.sql = `SELECT ${Array.isArray(columns) ? columns.join(', ') : columns}`;
+  select(columns?: string | string[]): SqlBuilder {
+    if (!columns || (Array.isArray(columns) && columns.length === 0)) {
+      this.sql = 'SELECT *';
+    } else {
+      this.sql = `SELECT ${Array.isArray(columns) ? columns.join(', ') : columns}`;
+    }
     return this;
   }
 
