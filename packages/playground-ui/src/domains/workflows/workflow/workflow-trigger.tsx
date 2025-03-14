@@ -19,6 +19,7 @@ import { WorkflowRunContext } from '../context/workflow-run-context';
 interface SuspendedStep {
   stepId: string;
   runId: string;
+  suspendPayload: any;
 }
 
 interface WorkflowPath {
@@ -86,6 +87,7 @@ export function WorkflowTrigger({
       .map((path: WorkflowPath) => ({
         stepId: path.stepId,
         runId: result.runId,
+        suspendPayload: watchResultToUse.context?.steps?.[path.stepId]?.suspendPayload,
       }));
     setSuspendedSteps(suspended);
   }, [watchResultToUse, result]);
@@ -144,58 +146,39 @@ export function WorkflowTrigger({
 
   const zodInputSchema = resolveSerializedZodOutput(jsonSchemaToZod(parse(triggerSchema)));
 
+  const isSuspendedSteps = suspendedSteps.length > 0;
+
   return (
     <ScrollArea className="h-[calc(100vh-126px)] pt-2 px-4 pb-4 text-xs w-[400px]">
       <div className="space-y-4">
-        <div>
-          {suspendedSteps.length > 0 ? (
-            suspendedSteps?.map(step => (
-              <div className="px-4">
-                <Text variant="secondary" className="text-mastra-el-3" size="xs">
-                  {step.stepId}
-                </Text>
-                <DynamicForm
-                  schema={z.record(z.string(), z.any())}
-                  isSubmitLoading={isResumingWorkflow}
-                  submitButtonLabel="Resume"
-                  onSubmit={data => {
-                    handleResumeWorkflow({
-                      stepId: step.stepId,
-                      runId: step.runId,
-                      context: data,
-                    });
-                  }}
-                />
-              </div>
-            ))
-          ) : (
-            <></>
-          )}
-
-          <div className="flex items-center justify-between w-full">
-            <Text variant="secondary" className="text-mastra-el-3 px-4" size="xs">
-              Input
-            </Text>
-            {isResumingWorkflow ? (
-              <span className="flex items-center gap-1">
-                <Loader2 className="animate-spin w-3 h-3 text-mastra-el-accent" /> Resuming workflow
-              </span>
-            ) : (
-              <></>
-            )}
+        {!isSuspendedSteps && (
+          <div className="flex flex-col">
+            <div className="flex items-center justify-between w-full">
+              <Text variant="secondary" className="text-mastra-el-3 px-4" size="xs">
+                Input
+              </Text>
+              {isResumingWorkflow ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="animate-spin w-3 h-3 text-mastra-el-accent" /> Resuming workflow
+                </span>
+              ) : (
+                <></>
+              )}
+            </div>
+            <DynamicForm
+              schema={zodInputSchema}
+              defaultValues={payload}
+              isSubmitLoading={isWatchingWorkflow}
+              onSubmit={data => {
+                setPayload(data);
+                handleExecuteWorkflow(data);
+              }}
+            />
           </div>
-          <DynamicForm
-            schema={zodInputSchema}
-            defaultValues={payload}
-            isSubmitLoading={isWatchingWorkflow}
-            onSubmit={data => {
-              setPayload(data);
-              handleExecuteWorkflow(data);
-            }}
-          />
-        </div>
+        )}
+
         {workflowActivePaths.length > 0 && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col">
             <Text variant="secondary" className="text-mastra-el-3  px-4" size="xs">
               Status
             </Text>
@@ -245,8 +228,40 @@ export function WorkflowTrigger({
             </div>
           </div>
         )}
+
+        {isSuspendedSteps &&
+          suspendedSteps?.map(step => (
+            <div className="px-4 flex flex-col">
+              <Text variant="secondary" className="text-mastra-el-3" size="xs">
+                {step.stepId}
+              </Text>
+              {step.suspendPayload && (
+                <div>
+                  <CodeBlockDemo
+                    className="w-[300px] overflow-x-auto"
+                    code={JSON.stringify(step.suspendPayload, null, 2)}
+                    language="json"
+                  />
+                </div>
+              )}
+              <DynamicForm
+                schema={z.record(z.string(), z.any())}
+                isSubmitLoading={isResumingWorkflow}
+                submitButtonLabel="Resume"
+                onSubmit={data => {
+                  handleResumeWorkflow({
+                    stepId: step.stepId,
+                    runId: step.runId,
+                    suspendPayload: step.suspendPayload,
+                    context: data,
+                  });
+                }}
+              />
+            </div>
+          ))}
+
         {result && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col">
             <Text variant="secondary" className="text-mastra-el-3  px-4" size="xs">
               Output
             </Text>

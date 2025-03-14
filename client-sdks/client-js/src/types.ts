@@ -80,10 +80,20 @@ export type WorkflowRunResult = {
   context: {
     steps: Record<
       string,
-      {
-        status: 'completed' | 'suspended' | 'running';
-        [key: string]: any;
-      }
+      | {
+          status: 'success';
+          output: any;
+          [key: string]: any;
+        }
+      | {
+          status: 'pending';
+          [key: string]: any;
+        }
+      | {
+          status: 'suspended';
+          suspendPayload: any;
+          [key: string]: any;
+        }
     >;
   };
   timestamp: number;
