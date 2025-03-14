@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fromPackageRoot, fromRepoRoot, log } from '../utils';
 
-const DOCS_SOURCE = '../../docs/src/pages/docs';
-const DOCS_DEST = './.docs/raw';
+const DOCS_SOURCE = fromRepoRoot('docs/src/pages/docs');
+const DOCS_DEST = fromPackageRoot('.docs/raw');
 
 async function copyDir(src: string, dest: string) {
   // Create destination directory
@@ -36,7 +37,7 @@ export async function copyRaw() {
 
     // Copy docs
     await copyDir(DOCS_SOURCE, DOCS_DEST);
-    console.log('✅ Documentation files copied successfully');
+    log('✅ Documentation files copied successfully');
   } catch (error) {
     console.error('❌ Failed to copy documentation files:', error);
     process.exit(1);

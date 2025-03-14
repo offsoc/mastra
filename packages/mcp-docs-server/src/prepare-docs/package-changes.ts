@@ -1,17 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fromPackageRoot, fromRepoRoot, log } from '../utils';
 
 // Define all source directories to scan
-const SOURCE_DIRS = [
-  '../../packages',
-  '../../speech',
-  '../../stores',
-  '../../voice',
-  '../../integrations',
-  '../../deployers',
-  '../../client-sdks',
-];
-const CHANGELOGS_DEST = './.docs/organized/changelogs';
+const SOURCE_DIRS = ['packages', 'speech', 'stores', 'voice', 'integrations', 'deployers', 'client-sdks'].map(
+  fromRepoRoot,
+);
+const CHANGELOGS_DEST = fromPackageRoot('.docs/organized/changelogs');
 const MAX_LINES = 300;
 
 /**
@@ -20,7 +15,7 @@ const MAX_LINES = 300;
 function truncateContent(content: string, maxLines: number): string {
   const lines = content.split('\n');
   if (lines.length <= maxLines) return content;
-  
+
   const visibleLines = lines.slice(0, maxLines);
   const hiddenCount = lines.length - maxLines;
   return visibleLines.join('\n') + `\n\n... ${hiddenCount} more lines hidden. See full changelog in package directory.`;
@@ -37,11 +32,11 @@ async function processPackageDir(packagePath: string, outputDir: string): Promis
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf-8'));
     packageName = packageJson.name;
     if (!packageName) {
-      console.log(`Skipping ${path.basename(packagePath)}: No package name found in package.json`);
+      log(`Skipping ${path.basename(packagePath)}: No package name found in package.json`);
       return;
     }
   } catch {
-    console.log(`Skipping ${path.basename(packagePath)}: No valid package.json found`);
+    console.error(`Skipping ${path.basename(packagePath)}: No valid package.json found`);
     return;
   }
 
@@ -59,7 +54,7 @@ async function processPackageDir(packagePath: string, outputDir: string): Promis
     // Write to output file using URL-encoded package name
     const outputFile = path.join(outputDir, `${encodeURIComponent(packageName)}.md`);
     await fs.writeFile(outputFile, changelog, 'utf-8');
-    console.log(`Generated changelog for ${packageName}`);
+    log(`Generated changelog for ${packageName}`);
   } catch (error) {
     console.error(`Error processing changelog for ${packageName}:`, error);
   }
@@ -84,11 +79,11 @@ export async function preparePackageChanges() {
   // Process each source directory
   for (const sourceDir of SOURCE_DIRS) {
     const fullSourceDir = path.resolve(process.cwd(), sourceDir);
-    
+
     try {
       // Check if directory exists before trying to read it
       await fs.access(fullSourceDir);
-      
+
       const entries = await fs.readdir(fullSourceDir, { withFileTypes: true });
       const packageDirs = entries
         .filter(entry => entry.isDirectory())
@@ -99,8 +94,9 @@ export async function preparePackageChanges() {
         const packagePath = path.join(fullSourceDir, dir.name);
         await processPackageDir(packagePath, outputDir);
       }
-    } catch (error) {
-      console.log(`Skipping ${sourceDir}: Directory not found or not accessible`);
+    } catch {
+      console.error(`Skipping ${sourceDir}: Directory not found or not accessible`);
     }
   }
-} 
+}
+

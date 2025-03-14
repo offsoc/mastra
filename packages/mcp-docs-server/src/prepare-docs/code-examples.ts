@@ -1,31 +1,32 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fromPackageRoot, fromRepoRoot, log } from '../utils';
+
+const EXAMPLES_SOURCE = fromRepoRoot('examples');
+const OUTPUT_DIR = fromPackageRoot('.docs/organized/code-examples');
 
 /**
  * Scans example directories and creates flattened code example files
  */
 export async function prepareCodeExamples() {
-  const examplesDir = path.resolve(process.cwd(), '../../examples');
-  const outputDir = path.resolve(process.cwd(), '.docs/organized/code-examples');
-
   // Clean up existing output directory
   try {
-    await fs.rm(outputDir, { recursive: true, force: true });
+    await fs.rm(OUTPUT_DIR, { recursive: true, force: true });
   } catch {
     // Ignore errors if directory doesn't exist
   }
 
   // Ensure output directory exists
-  await fs.mkdir(outputDir, { recursive: true });
+  await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
   // Get all example directories
-  const examples = await fs.readdir(examplesDir, { withFileTypes: true });
+  const examples = await fs.readdir(EXAMPLES_SOURCE, { withFileTypes: true });
   const exampleDirs = examples.filter(entry => entry.isDirectory());
 
   for (const dir of exampleDirs) {
-    const examplePath = path.join(examplesDir, dir.name);
-    const outputFile = path.join(outputDir, `${dir.name}.md`);
-    
+    const examplePath = path.join(EXAMPLES_SOURCE, dir.name);
+    const outputFile = path.join(OUTPUT_DIR, `${dir.name}.md`);
+
     // Collect all relevant files
     const files: { path: string; content: string }[] = [];
 
@@ -55,15 +56,15 @@ export async function prepareCodeExamples() {
         .join('\n');
 
       const totalLines = output.split('\n').length;
-      
+
       // Skip if total lines would exceed 500
       if (totalLines > 500) {
-        console.log(`Skipping ${dir.name}: ${totalLines} lines exceeds limit of 500`);
+        log(`Skipping ${dir.name}: ${totalLines} lines exceeds limit of 500`);
         continue;
       }
 
       await fs.writeFile(outputFile, output, 'utf-8');
-      console.log(`Generated ${dir.name}.md with ${totalLines} lines`);
+      log(`Generated ${dir.name}.md with ${totalLines} lines`);
     }
   }
 }
@@ -97,4 +98,5 @@ function getFileType(filePath: string): string {
   if (filePath === 'package.json') return 'json';
   if (filePath.endsWith('.ts')) return 'typescript';
   return '';
-} 
+}
+
