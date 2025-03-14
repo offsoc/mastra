@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { blogTool } from '../blog';
-import { JSDOM } from 'jsdom';
+import fs from 'fs';
+import path from 'path';
 
 // Mock fetch
 const mockFetch = vi.fn();
@@ -152,8 +153,8 @@ describe('blogTool', () => {
       const result = await blogTool.execute({ url: 'https://mastra.ai/blog/test' });
       expect(result).toContain('# Test Post');
       expect(result).toContain('## Subtitle');
-      expect(result).toContain('- Item 1');
-      expect(result).toContain('- Item 2');
+      expect(result).toContain('-   Item 1');
+      expect(result).toContain('-   Item 2');
       expect(result).toContain('```\nconst x = 1;\n```');
       expect(result).toContain('> Quote here');
       expect(result).toContain('![Test image](test.jpg)');
@@ -182,17 +183,42 @@ describe('blogTool', () => {
     it('should handle errors gracefully', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(blogTool.execute({ url: 'https://mastra.ai/blog/test' }))
-        .rejects
-        .toThrow('Failed to fetch blog content: Failed to fetch blog post: Network error');
+      await expect(blogTool.execute({ url: 'https://mastra.ai/blog/test' })).rejects.toThrow(
+        'Failed to fetch blog content: Failed to fetch blog post: Network error',
+      );
     });
 
     it('should handle invalid URLs', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Invalid URL'));
 
-      await expect(blogTool.execute({ url: 'not-a-url' }))
-        .rejects
-        .toThrow('Failed to fetch blog content: Failed to fetch blog post: Invalid URL');
+      await expect(blogTool.execute({ url: 'not-a-url' })).rejects.toThrow(
+        'Failed to fetch blog content: Failed to fetch blog post: Invalid URL',
+      );
+    });
+
+    it('should remove Next.js initialization code from blog post content', async () => {
+      const mockHtml = fs.readFileSync(
+        path.join(__dirname, '../__fixtures__/blog-post-raw.txt'),
+        'utf-8'
+      );
+      
+      mockFetch.mockResolvedValueOnce({
+        text: () => Promise.resolve(mockHtml),
+      });
+
+      const result = await blogTool.execute({ url: 'https://mastra.ai/blog/principles-of-ai-engineering' });
+      
+      // Verify content is preserved
+      expect(result).toContain('## [](#principles-of-building-ai-agents)Principles of Building AI agents');
+      expect(result).toContain('Today is YC demo day');
+      
+      // Verify Next.js initialization code is removed
+      expect(result).not.toContain('self.__next_f=self.__next_f||[]).push([0]');
+      expect(result).not.toContain('1:HL[');
+      expect(result).not.toMatch(/\[\d+,"[\w\\\/\.-]+"\]/);
+      expect(result).not.toContain('static/chunks');
+      expect(result).not.toContain('__next');
     });
   });
-}); 
+});
+
