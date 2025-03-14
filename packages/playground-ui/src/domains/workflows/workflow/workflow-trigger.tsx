@@ -52,13 +52,17 @@ export function WorkflowTrigger({
 
       setResult(null);
 
-    const { runId } = await createWorkflowRun({ workflowId });
+      const { runId } = await createWorkflowRun({ workflowId });
 
-    setRunId?.(runId);
+      setRunId?.(runId);
 
-    watchWorkflow({ workflowId, runId });
+      watchWorkflow({ workflowId, runId });
 
-    startWorkflowRun({ workflowId, runId, input: data });
+      startWorkflowRun({ workflowId, runId, input: data });
+    } catch (err) {
+      setIsRunning(false);
+      toast.error('Error executing workflow');
+    }
   };
 
   const handleResumeWorkflow = async (step: SuspendedStep & { context: any }) => {
