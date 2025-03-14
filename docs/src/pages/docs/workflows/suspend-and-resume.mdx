@@ -126,8 +126,7 @@ if (promptAgentStepResult?.status === 'suspended') {
   console.log('Workflow suspended at promptAgent step');
 
   // Resume the workflow with new context
-  const resumeResult = await wf.resume({
-    runId: run.runId,
+  const resumeResult = await run.resume({
     stepId: 'promptAgent',
     context: { userInput: 'Human provided input' }
   });
@@ -141,8 +140,7 @@ if (improveResponseStepResult?.status === 'suspended') {
   console.log('Workflow suspended at improveResponse step');
 
   // Resume again with different context
-  const finalResult = await wf.resume({
-    runId: run.runId,
+  const finalResult = await run.resume({
     stepId: 'improveResponse',
     context: { refinedOutput: 'Human refined output' }
   });
@@ -157,7 +155,7 @@ if (improveResponseStepResult?.status === 'suspended') {
 - Code after the `await suspend()` call will not execute until the step is resumed
 - When a step is suspended, its status becomes `'suspended'` in the workflow results
 - When resumed, the step's status changes from `'suspended'` to `'success'` once completed
-- The `resume()` method requires the `runId` and `stepId` to identify which suspended step to resume
+- The `resume()` method requires the `stepId` to identify which suspended step to resume
 - You can provide new context data when resuming that will be merged with existing step results
 
 ## Watching and Resuming
@@ -169,7 +167,7 @@ import { mastra } from "./index";
 
 // Get the workflow
 const myWorkflow = mastra.getWorkflow('myWorkflow');
-const { runId, start, watch } = myWorkflow.createRun();
+const { start, watch, resume } = myWorkflow.createRun();
 
 // Start watching the workflow before executing it
 watch(async ({ context, activePaths }) => {
@@ -179,8 +177,7 @@ watch(async ({ context, activePaths }) => {
       console.log("Workflow suspended, resuming with new value");
 
       // Resume the workflow with new context
-      await myWorkflow.resume({
-        runId,
+      await resume({
         stepId: 'stepTwo',
         context: { secondValue: 100 },
       });

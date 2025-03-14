@@ -184,7 +184,7 @@ await start({ triggerData: data });
 
 ```ts showLineNumbers copy
 try {
-  const { runId, start, watch } = workflow.createRun();
+  const { runId, start, watch, resume } = workflow.createRun();
   await start({ triggerData: data });
 } catch (error) {
   if (error instanceof ValidationError) {
