@@ -1,4 +1,4 @@
-# @mastra/docs-mcp
+# @mastra/mcp-docs-server
 
 A Model Context Protocol (MCP) server that provides AI assistants with direct access to Mastra.ai's complete knowledge base. This includes comprehensive documentation with MDX support, a collection of production-ready code examples, technical blog posts, and detailed package changelogs. The server integrates with popular AI development environments like Cursor and Windsurf, as well as Mastra agents, making it easy to build documentation-aware AI assistants that can provide accurate, up-to-date information about Mastra.ai's ecosystem.
 
@@ -13,7 +13,7 @@ Create or update `.cursor/mcp.json` in your project root:
   "servers": {
     "mastra": {
       "command": "npx",
-      "args": ["-y", "@mastra/docs-mcp"]
+      "args": ["-y", "@mastra/mcp-docs-server"]
     }
   }
 }
@@ -30,7 +30,7 @@ Create or update `~/.codeium/windsurf/mcp_config.json`:
   "mcpServers": {
     "mastra": {
       "command": "npx",
-      "args": ["-y", "@mastra/docs-mcp"]
+      "args": ["-y", "@mastra/mcp-docs-server"]
     }
   }
 }
@@ -50,7 +50,7 @@ const mcp = new MCPConfiguration({
   servers: {
     mastra: {
       command: 'npx',
-      args: ['-y', '@mastra/docs-mcp'],
+      args: ['-y', '@mastra/mcp-docs-server'],
     },
   },
 });
