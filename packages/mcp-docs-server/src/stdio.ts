@@ -1,6 +1,11 @@
-import { server } from './index';
+import { prepare } from './prepare-docs/prepare';
 
-// console.error('Starting server...');
+if (process.env.REBUILD_DOCS_ON_START === 'true') {
+  await prepare();
+}
+
+const { server } = await import(`./index`);
+
 void server.start({
   transportType: 'stdio',
 });
