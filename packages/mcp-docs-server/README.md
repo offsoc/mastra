@@ -53,7 +53,7 @@ MacOS/Linux
 }
 ```
 
-Windows
+Windows (note: Windows Windsurf tool calling doesn't work very well)
 
 ```json
 {
