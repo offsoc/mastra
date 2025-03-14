@@ -40,6 +40,7 @@
     "date-fns": "^4.1.0",
     "exit-hook": "^4.0.0",
     "fastmcp": "^1.20.4",
+    "jsdom": "^26.0.0",
     "turndown": "^7.1.2",
     "uuid": "^11.1.0",
     "zod": "^3.22.4"
@@ -83,6 +84,7 @@
     "@mastra/upstash": "workspace:^",
     "@mastra/vectorize": "workspace:^",
     "@microsoft/api-extractor": "^7.52.1",
+    "@types/jsdom": "^21.1.7",
     "@types/node": "^20.11.24",
     "@types/turndown": "^5.0.5",
     "@wong2/mcp-cli": "^1.6.0",
