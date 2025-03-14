@@ -1,41 +1,24 @@
-import { JSDOM } from 'jsdom';
+import TurndownService from 'turndown';
 import { z } from 'zod';
 
-interface BlogPost {
-  title: string;
-  date: string;
-  url: string;
-}
-
-// Helper function to fetch and parse blog posts
-async function fetchBlogPosts(): Promise<BlogPost[]> {
+// Helper function to fetch blog posts as markdown
+async function fetchBlogPosts(): Promise<string> {
   try {
     const response = await fetch('https://mastra.ai/blog');
     const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
+    
+    // Configure turndown
+    const turndownService = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      emDelimiter: '_',
+      bulletListMarker: '-',
+      linkStyle: 'inlined',
+    });
 
-    // Find all blog post links
-    const posts: BlogPost[] = [];
-    const links = document.querySelectorAll('a');
-
-    for (const link of links) {
-      const href = link.getAttribute('href');
-      if (!href) continue;
-
-      // Look for blog post links that have a date
-      const dateText = link.textContent?.match(/(?:\w+ \d+, \d{4}|[A-Za-z]+ \d+,? \d{4}|\d{1,2}\/\d{1,2}\/\d{4}|\d{4}-\d{2}-\d{2})/);
-      if (dateText) {
-        const title = link.textContent?.replace(dateText[0], '').trim() || '';
-        posts.push({
-          title,
-          date: dateText[0],
-          url: href.startsWith('http') ? href : `https://mastra.ai${href}`,
-        });
-      }
-    }
-
-    return posts;
+    // Convert HTML to markdown and return
+    const markdown = turndownService.turndown(html);
+    return `Mastra.ai Blog Posts:\n\n${markdown}`;
   } catch (error) {
     throw new Error('Failed to fetch blog posts');
   }
@@ -46,89 +29,24 @@ async function fetchBlogPost(url: string): Promise<string> {
   try {
     const response = await fetch(url);
     const html = await response.text();
-    const dom = new JSDOM(html);
-    const document = dom.window.document;
 
-    // Find the main content area
-    const mainContent = document.querySelector('main') || document.body;
+    // Configure turndown
+    const turndownService = new TurndownService({
+      headingStyle: 'atx',
+      codeBlockStyle: 'fenced',
+      emDelimiter: '_',
+      bulletListMarker: '-',
+    });
 
-    // Convert HTML to markdown-like format
-    let markdown = '';
+    // Convert HTML to markdown
+    let markdown = turndownService.turndown(html);
 
-    // Helper function to process text nodes
-    function processTextNode(node: Node): string {
-      return node.textContent?.trim() || '';
-    }
-
-    // Helper function to process element nodes
-    function processElementNode(node: Element): string {
-      const tagName = node.tagName.toLowerCase();
-      const children = Array.from(node.childNodes)
-        .map(child => {
-          if (child.nodeType === 3) return processTextNode(child);
-          if (child.nodeType === 1) return processElementNode(child as Element);
-          return '';
-        })
-        .filter(Boolean)
-        .join(' ');
-
-      switch (tagName) {
-        case 'h1':
-          return `\n# ${children}\n\n`;
-        case 'h2':
-          return `\n## ${children}\n\n`;
-        case 'h3':
-          return `\n### ${children}\n\n`;
-        case 'p':
-          return `${children}\n\n`;
-        case 'a':
-          const href = node.getAttribute('href');
-          return href ? `[${children}](${href})` : children;
-        case 'code':
-          // If parent is pre, don't wrap in backticks as it's already a code block
-          if (node.parentElement?.tagName.toLowerCase() === 'pre') {
-            return children;
-          }
-          return `\`${children}\``;
-        case 'pre':
-          // If contains a code element, use its content directly
-          const codeElement = node.querySelector('code');
-          const content = codeElement ? codeElement.textContent || children : children;
-          return `\`\`\`\n${content}\n\`\`\`\n\n`;
-        case 'ul':
-          return (
-            Array.from(node.children)
-              .map(li => `- ${processElementNode(li)}`)
-              .join('\n') + '\n\n'
-          );
-        case 'ol':
-          return (
-            Array.from(node.children)
-              .map((li, i) => `${i + 1}. ${processElementNode(li)}`)
-              .join('\n') + '\n\n'
-          );
-        case 'li':
-          return children;
-        case 'blockquote':
-          return `> ${children}\n\n`;
-        case 'img':
-          const src = node.getAttribute('src');
-          const alt = node.getAttribute('alt') || '';
-          return src ? `![${alt}](${src})\n\n` : '';
-        default:
-          return children;
-      }
-    }
-
-    // Process all nodes in the main content
-    markdown = Array.from(mainContent.childNodes)
-      .map(node => {
-        if (node.nodeType === 3) return processTextNode(node);
-        if (node.nodeType === 1) return processElementNode(node as Element);
-        return '';
-      })
-      .filter(Boolean)
-      .join('')
+    // Clean up Next.js initialization code and other artifacts
+    markdown = markdown
+      .replace(/\(self\.__next_f=self\.__next_f\|\|\[\]\)\.push\(\[[^\]]*\]\);?/g, '') // Remove Next.js initialization
+      .replace(/\[\d+,"[\w\\\/\.-]+"\]/g, '') // Remove chunk references
+      .replace(/static\/chunks\/[^"\s]+/g, '') // Remove chunk paths
+      .replace(/__next[^"\s]+/g, '') // Remove Next.js related paths
       .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
       .trim();
 
@@ -140,7 +58,8 @@ async function fetchBlogPost(url: string): Promise<string> {
 
 export const blogTool = {
   name: 'mastraBlog',
-  description: 'Get Mastra.ai blog content. Without a URL, returns a list of all blog posts. With a URL, returns the specific blog post content in markdown format. The blog contains changelog posts as well as announcements and posts about Mastra features and AI news',
+  description:
+    'Get Mastra.ai blog content. Without a URL, returns a list of all blog posts. With a URL, returns the specific blog post content in markdown format. The blog contains changelog posts as well as announcements and posts about Mastra features and AI news',
   parameters: z.object({
     url: z
       .string()
@@ -151,16 +70,9 @@ export const blogTool = {
   execute: async (args: { url: string }) => {
     try {
       if (args.url !== `/blog`) {
-        const content = await fetchBlogPost(args.url);
-        return content;
+        return await fetchBlogPost(args.url);
       } else {
-        const posts = await fetchBlogPosts();
-        const output = [
-          'Mastra.ai Blog Posts:',
-          '',
-          ...posts.map(post => `- ${post.title} (${post.date})\n  ${post.url}`),
-        ].join('\n');
-        return output;
+        return await fetchBlogPosts();
       }
     } catch (error) {
       if (error instanceof Error) {
@@ -169,4 +81,4 @@ export const blogTool = {
       throw error;
     }
   },
-}; 
+};
