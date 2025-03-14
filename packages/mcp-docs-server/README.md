@@ -53,7 +53,7 @@ MacOS/Linux
 }
 ```
 
-Windows (note: Windows Windsurf tool calling doesn't work very well)
+Windows (note: Windows Windsurf tool calling doesn't work very well. You also need to fully quit and re-open Windsurf after adding this)
 
 ```json
 {
