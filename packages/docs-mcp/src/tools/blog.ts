@@ -1,5 +1,5 @@
-import TurndownService from 'turndown';
 import { z } from 'zod';
+import { JSDOM } from 'jsdom';
 
 // Helper function to fetch blog posts as markdown
 async function fetchBlogPosts(): Promise<string> {
@@ -7,18 +7,28 @@ async function fetchBlogPosts(): Promise<string> {
     const response = await fetch('https://mastra.ai/blog');
     const html = await response.text();
     
-    // Configure turndown
-    const turndownService = new TurndownService({
-      headingStyle: 'atx',
-      codeBlockStyle: 'fenced',
-      emDelimiter: '_',
-      bulletListMarker: '-',
-      linkStyle: 'inlined',
-    });
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+    
+    // Find all blog post links
+    const blogLinks = Array.from(document.querySelectorAll('a[href^="/blog/"]'))
+      .filter(link => {
+        const href = link.getAttribute('href');
+        // Exclude the main blog page and any other special pages
+        return href !== '/blog' && !href?.includes('authors');
+      })
+      .map(link => {
+        const h2 = link.querySelector('h2');
+        const title = h2?.textContent?.trim();
+        const href = link.getAttribute('href');
+        if (title && href) {
+          return `[${title}](${href})`;
+        }
+        return null;
+      })
+      .filter(Boolean);
 
-    // Convert HTML to markdown and return
-    const markdown = turndownService.turndown(html);
-    return `Mastra.ai Blog Posts:\n\n${markdown}`;
+    return "Mastra.ai Blog Posts:\n\n" + blogLinks.join("\n");
   } catch (error) {
     throw new Error('Failed to fetch blog posts');
   }
@@ -29,28 +39,15 @@ async function fetchBlogPost(url: string): Promise<string> {
   try {
     const response = await fetch(url);
     const html = await response.text();
-
-    // Configure turndown
-    const turndownService = new TurndownService({
-      headingStyle: 'atx',
-      codeBlockStyle: 'fenced',
-      emDelimiter: '_',
-      bulletListMarker: '-',
-    });
-
-    // Convert HTML to markdown
-    let markdown = turndownService.turndown(html);
-
-    // Clean up Next.js initialization code and other artifacts
-    markdown = markdown
-      .replace(/\(self\.__next_f=self\.__next_f\|\|\[\]\)\.push\(\[[^\]]*\]\);?/g, '') // Remove Next.js initialization
-      .replace(/\[\d+,"[\w\\\/\.-]+"\]/g, '') // Remove chunk references
-      .replace(/static\/chunks\/[^"\s]+/g, '') // Remove chunk paths
-      .replace(/__next[^"\s]+/g, '') // Remove Next.js related paths
-      .replace(/\n{3,}/g, '\n\n') // Remove excessive newlines
-      .trim();
-
-    return markdown;
+    
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+    
+    // Remove Next.js initialization code
+    const scripts = document.querySelectorAll('script');
+    scripts.forEach(script => script.remove());
+    
+    return document.body.textContent || "";
   } catch (error) {
     throw new Error(`Failed to fetch blog post: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -70,13 +67,13 @@ export const blogTool = {
   execute: async (args: { url: string }) => {
     try {
       if (args.url !== `/blog`) {
-        return await fetchBlogPost(args.url);
+        return await fetchBlogPost(`https://mastra.ai${args.url}`);
       } else {
         return await fetchBlogPosts();
       }
     } catch (error) {
       if (error instanceof Error) {
-        throw new Error(`Failed to fetch blog content: ${error.message}`);
+        throw new Error('Failed to fetch blog posts');
       }
       throw error;
     }

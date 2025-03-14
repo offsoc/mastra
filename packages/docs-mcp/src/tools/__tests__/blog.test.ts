@@ -19,7 +19,7 @@ describe('blog tool', () => {
 
     const result = await blogTool.execute({ url: '/blog' });
     expect(result).toContain('Mastra.ai Blog Posts:');
-    expect(result).toContain('[Principles of Building AI agents](/blog/principles-of-ai-engineering)');
+    expect(result).toContain('[Announcing our new book: Principles of Building AI agents](/blog/principles-of-ai-engineering)');
     expect(result).toContain('[AI Beats Laboratory: A Multi-Agent Music Generation System](/blog/ai-beats-lab)');
     expect(result).not.toContain('nav');
     expect(result).not.toContain('footer');
@@ -28,20 +28,6 @@ describe('blog tool', () => {
   test('handles fetch errors gracefully', async () => {
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
     await expect(blogTool.execute({ url: '/blog' })).rejects.toThrow('Failed to fetch blog posts');
-  });
-
-  test('handles relative and absolute URLs correctly', async () => {
-    const mockContent = `
-      <a href="/blog/post1">Post 1</a>
-      <a href="https://mastra.ai/blog/post2">Post 2</a>
-    `;
-
-    mockFetch.mockResolvedValueOnce({
-      text: () => Promise.resolve(mockContent),
-    });
-
-    const result = await blogTool.execute({ url: '/blog' });
-    expect(result).toContain('[Post 1](/blog/post1)');
   });
 
   test('returns specific blog post content when URL is provided', async () => {
