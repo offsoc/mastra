@@ -8,12 +8,27 @@ A Model Context Protocol (MCP) server that provides AI assistants with direct ac
 
 Create or update `.cursor/mcp.json` in your project root:
 
+MacOS/Linux
+
 ```json
 {
-  "servers": {
+  "mcpServers": {
     "mastra": {
       "command": "npx",
       "args": ["-y", "@mastra/mcp-docs-server"]
+    }
+  }
+}
+```
+
+Windows
+
+```json
+{
+  "mcpServers": {
+    "mastra": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@mastra/mcp-docs-server"]
     }
   }
 }
@@ -25,12 +40,27 @@ This will make all Mastra documentation tools available in your Cursor workspace
 
 Create or update `~/.codeium/windsurf/mcp_config.json`:
 
+MacOS/Linux
+
 ```json
 {
   "mcpServers": {
     "mastra": {
       "command": "npx",
       "args": ["-y", "@mastra/mcp-docs-server"]
+    }
+  }
+}
+```
+
+Windows
+
+```json
+{
+  "mcpServers": {
+    "mastra": {
+      "command": "cmd",
+      "args": ["/c", "npx", "-y", "@mastra/mcp-docs-server"]
     }
   }
 }
