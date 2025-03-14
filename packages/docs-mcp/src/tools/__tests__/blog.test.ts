@@ -31,14 +31,19 @@ describe('blog tool', () => {
   });
 
   test('returns specific blog post content when URL is provided', async () => {
-    const mockContent = '<h1>Test Blog Post</h1><p>This is a test blog post.</p>';
+    const fixture = fs.readFileSync(
+      path.join(__dirname, '../__fixtures__/blog-post-raw.txt'),
+      'utf-8'
+    );
+
     mockFetch.mockResolvedValueOnce({
-      text: () => Promise.resolve(mockContent),
+      text: () => Promise.resolve(fixture),
     });
 
-    const result = await blogTool.execute({ url: '/blog/test-post' });
-    expect(result).toContain('Test Blog Post');
-    expect(result).toContain('This is a test blog post.');
+    const result = await blogTool.execute({ url: '/blog/principles-of-ai-engineering' });
+    expect(result).toContain('Announcing our new book: Principles of Building AI agents');
+    expect(result).toContain('Principles of Building AI agents');
+    expect(result).toContain('Today is YC demo day and we\'re excited to announce the release of our new book');
   });
 
   test('removes Next.js initialization code from blog post content', async () => {
