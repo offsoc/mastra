@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import type { Tool, Context } from 'tylerbarnes-fastmcp-fix';
 import { z } from 'zod';
-import { Tool, Context } from 'fastmcp';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -197,4 +197,5 @@ export const docsTool: Tool<any, typeof docsSchema> = {
       throw error;
     }
   },
-}; 
+};
+

@@ -1,4 +1,4 @@
-import { FastMCP } from 'fastmcp';
+import { FastMCP } from 'tylerbarnes-fastmcp-fix';
 import { blogTool } from './tools/blog';
 import { changesTool } from './tools/changes';
 import { docsTool } from './tools/docs';

@@ -1,15 +1,15 @@
-import { z } from 'zod';
 import { JSDOM } from 'jsdom';
+import { z } from 'zod';
 
 // Helper function to fetch blog posts as markdown
 async function fetchBlogPosts(): Promise<string> {
   try {
     const response = await fetch('https://mastra.ai/blog');
     const html = await response.text();
-    
+
     const dom = new JSDOM(html);
     const document = dom.window.document;
-    
+
     // Find all blog post links
     const blogLinks = Array.from(document.querySelectorAll('a[href^="/blog/"]'))
       .filter(link => {
@@ -28,7 +28,7 @@ async function fetchBlogPosts(): Promise<string> {
       })
       .filter(Boolean);
 
-    return "Mastra.ai Blog Posts:\n\n" + blogLinks.join("\n");
+    return 'Mastra.ai Blog Posts:\n\n' + blogLinks.join('\n');
   } catch (error) {
     throw new Error('Failed to fetch blog posts');
   }
@@ -39,15 +39,15 @@ async function fetchBlogPost(url: string): Promise<string> {
   try {
     const response = await fetch(url);
     const html = await response.text();
-    
+
     const dom = new JSDOM(html);
     const document = dom.window.document;
-    
+
     // Remove Next.js initialization code
     const scripts = document.querySelectorAll('script');
     scripts.forEach(script => script.remove());
-    
-    return document.body.textContent || "";
+
+    return document.body.textContent || '';
   } catch (error) {
     throw new Error(`Failed to fetch blog post: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
