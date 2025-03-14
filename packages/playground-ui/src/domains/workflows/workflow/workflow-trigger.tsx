@@ -15,6 +15,7 @@ import { Text } from '@/components/ui/text';
 
 import { useExecuteWorkflow, useWatchWorkflow, useResumeWorkflow, useWorkflow } from '@/hooks/use-workflows';
 import { WorkflowRunContext } from '../context/workflow-run-context';
+import { toast } from 'sonner';
 
 interface SuspendedStep {
   stepId: string;
@@ -41,13 +42,15 @@ export function WorkflowTrigger({
   const { watchWorkflow, watchResult, isWatchingWorkflow } = useWatchWorkflow(baseUrl);
   const { resumeWorkflow, isResumingWorkflow } = useResumeWorkflow(baseUrl);
   const [suspendedSteps, setSuspendedSteps] = useState<SuspendedStep[]>([]);
-
+  const [isRunning, setIsRunning] = useState(false);
   const triggerSchema = workflow?.triggerSchema;
 
   const handleExecuteWorkflow = async (data: any) => {
-    if (!workflow) return;
+    try {
+      if (!workflow) return;
+      setIsRunning(true);
 
-    setResult(null);
+      setResult(null);
 
     const { runId } = await createWorkflowRun({ workflowId });
 
@@ -78,6 +81,10 @@ export function WorkflowTrigger({
   const watchResultToUse = result ?? watchResult;
 
   const workflowActivePaths = watchResultToUse?.activePaths ?? [];
+
+  useEffect(() => {
+    setIsRunning(isWatchingWorkflow);
+  }, [isWatchingWorkflow]);
 
   useEffect(() => {
     if (!watchResultToUse?.activePaths || !result?.runId) return;
@@ -115,21 +122,21 @@ export function WorkflowTrigger({
 
   if (!triggerSchema) {
     return (
-      <ScrollArea className="h-[calc(100vh-126px)] pt-2 px-4 pb-4 text-xs w-[400px]">
+      <ScrollArea className="h-[calc(100vh-126px)] pt-2 px-4 pb-4 text-xs w-full">
         <div className="space-y-4">
-          <div className="space-y-4 px-4">
-            <Button className="w-full" disabled={isWatchingWorkflow} onClick={() => handleExecuteWorkflow(null)}>
-              {isWatchingWorkflow ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Trigger'}
+          <div className="px-4 space-y-4">
+            <Button className="w-full" disabled={isRunning} onClick={() => handleExecuteWorkflow(null)}>
+              {isRunning ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Trigger'}
             </Button>
           </div>
 
           <div>
-            <Text variant="secondary" className="text-mastra-el-3  px-4" size="xs">
+            <Text variant="secondary" className="px-4 text-mastra-el-3" size="xs">
               Output
             </Text>
             <div className="flex flex-col gap-2">
               <CopyButton
-                classname="absolute z-40 top-4 right-4 w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"
+                classname="absolute z-40 w-8 h-8 p-0 transition-opacity duration-150 ease-in-out opacity-0 top-4 right-4 group-hover:opacity-100"
                 content={JSON.stringify(result ?? {}, null, 2)}
               />
             </div>
@@ -149,17 +156,17 @@ export function WorkflowTrigger({
   const isSuspendedSteps = suspendedSteps.length > 0;
 
   return (
-    <ScrollArea className="h-[calc(100vh-126px)] pt-2 px-4 pb-4 text-xs w-[400px]">
+    <ScrollArea className="h-[calc(100vh-126px)] pt-2 px-4 pb-4 text-xs w-full">
       <div className="space-y-4">
         {!isSuspendedSteps && (
           <div className="flex flex-col">
             <div className="flex items-center justify-between w-full">
-              <Text variant="secondary" className="text-mastra-el-3 px-4" size="xs">
+              <Text variant="secondary" className="px-4 text-mastra-el-3" size="xs">
                 Input
               </Text>
               {isResumingWorkflow ? (
                 <span className="flex items-center gap-1">
-                  <Loader2 className="animate-spin w-3 h-3 text-mastra-el-accent" /> Resuming workflow
+                  <Loader2 className="w-3 h-3 animate-spin text-mastra-el-accent" /> Resuming workflow
                 </span>
               ) : (
                 <></>
@@ -179,13 +186,13 @@ export function WorkflowTrigger({
 
         {workflowActivePaths.length > 0 && (
           <div className="flex flex-col">
-            <Text variant="secondary" className="text-mastra-el-3  px-4" size="xs">
+            <Text variant="secondary" className="px-4 text-mastra-el-3" size="xs">
               Status
             </Text>
             <div className="px-4">
               {workflowActivePaths?.map((activePath: any, idx: number) => {
                 return (
-                  <div key={idx} className="flex flex-col mt-2 border  overflow-hidden">
+                  <div key={idx} className="flex flex-col mt-2 overflow-hidden border">
                     {activePath?.stepPath?.map((sp: any, idx: number) => {
                       const status =
                         activePath?.status === 'completed'
@@ -198,7 +205,7 @@ export function WorkflowTrigger({
                         status === 'Completed' ? (
                           <div className="w-2 h-2 bg-green-500 rounded-full" />
                         ) : (
-                          <div className="w-2 h-2 bg-yellow-500 animate-pulse rounded-full" />
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
                         );
 
                       return (
@@ -231,7 +238,7 @@ export function WorkflowTrigger({
 
         {isSuspendedSteps &&
           suspendedSteps?.map(step => (
-            <div className="px-4 flex flex-col">
+            <div className="flex flex-col px-4">
               <Text variant="secondary" className="text-mastra-el-3" size="xs">
                 {step.stepId}
               </Text>
@@ -262,12 +269,12 @@ export function WorkflowTrigger({
 
         {result && (
           <div className="flex flex-col">
-            <Text variant="secondary" className="text-mastra-el-3  px-4" size="xs">
+            <Text variant="secondary" className="px-4 text-mastra-el-3" size="xs">
               Output
             </Text>
             <div className="flex flex-col gap-2">
               <CopyButton
-                classname="absolute z-40 top-4 right-4 w-8 h-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"
+                classname="absolute z-40 w-8 h-8 p-0 transition-opacity duration-150 ease-in-out opacity-0 top-4 right-4 group-hover:opacity-100"
                 content={JSON.stringify(result, null, 2)}
               />
             </div>
