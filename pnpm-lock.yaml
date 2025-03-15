@@ -3352,9 +3352,6 @@ importers:
       turndown:
         specifier: ^7.1.2
         version: 7.2.0
-      tylerbarnes-fastmcp-fix:
-        specifier: ^1.0.0
-        version: 1.0.0
       uuid:
         specifier: ^11.1.0
         version: 11.1.0
@@ -20767,10 +20764,6 @@ packages:
 
   tweetnacl@1.0.3:
     resolution: {integrity: sha512-6rt+RN7aOi1nGMyC4Xa5DdYiukl2UWCbcJft7YhxReBGQD7OAM8Pbxw6YMo4r2diNEA8FEmu32YOn9rhaiE5yw==}
-
-  tylerbarnes-fastmcp-fix@1.0.0:
-    resolution: {integrity: sha512-h9EElb02WuoMpJQoLTfUh5B38raBEWrxZ5+b9/ytlKCnHT3Qdrpx1bjdy4GlmUq5jbwGMQPi9aFhfwXGgbv+Tg==}
-    hasBin: true
 
   type-check@0.4.0:
     resolution: {integrity: sha512-XleUoc9uwGXqjWwXaUTZAmzMcFZ5858QA2vvx1Ur5xIcixXIP+8LnFDgRplU30us6teqdlskFfu+ae4K79Ooew==}
@@ -43013,22 +43006,6 @@ snapshots:
   tweetnacl@0.14.5: {}
 
   tweetnacl@1.0.3: {}
-
-  tylerbarnes-fastmcp-fix@1.0.0:
-    dependencies:
-      '@modelcontextprotocol/sdk': 1.7.0
-      execa: 9.5.2
-      file-type: 20.4.0
-      fuse.js: 7.1.0
-      mcp-proxy: 2.10.5
-      strict-event-emitter-types: 2.0.0
-      undici: 7.4.0
-      uri-templates: 0.2.0
-      yargs: 17.7.2
-      zod: 3.24.2
-      zod-to-json-schema: 3.24.3(zod@3.24.2)
-    transitivePeerDependencies:
-      - supports-color
 
   type-check@0.4.0:
     dependencies:

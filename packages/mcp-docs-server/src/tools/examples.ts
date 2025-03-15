@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Tool, Context } from 'tylerbarnes-fastmcp-fix';
+import type { Tool, Context } from 'fastmcp';
 import { z } from 'zod';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -72,4 +72,3 @@ export const examplesTool: Tool<any, typeof examplesSchema> = {
     return content;
   },
 };
-
