@@ -1,6 +1,6 @@
 import fs from 'node:fs/promises';
 
-import { FastMCP } from 'tylerbarnes-fastmcp-fix';
+import { FastMCP } from 'fastmcp';
 
 import { blogTool } from './tools/blog';
 import { changesTool } from './tools/changes';
