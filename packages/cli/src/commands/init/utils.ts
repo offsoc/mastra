@@ -547,7 +547,7 @@ export const interactivePrompt = async () => {
           options: [
             { value: 'skip', label: 'Skip for now', hint: 'default' },
             { value: 'cursor', label: 'Cursor' },
-            { value: 'windsurf', label: 'Windsurf' },
+            { value: 'windsurf', label: 'Windsurf', hint: 'Not recommended, Windsurf MCP implementation is buggy' },
           ],
         });
 
