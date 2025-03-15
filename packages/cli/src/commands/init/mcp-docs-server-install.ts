@@ -46,7 +46,9 @@ async function writeMergedConfig(configPath: string) {
   const configExists = existsSync(configPath);
   const config = makeConfig(configExists ? await readJSON(configPath) : {});
   await ensureFile(configPath);
-  await writeJSON(configPath, config);
+  await writeJSON(configPath, config, {
+    spaces: 2,
+  });
 }
 
 export async function installCursorMCP(directory: string) {
