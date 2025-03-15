@@ -552,6 +552,12 @@ export const interactivePrompt = async () => {
         });
 
         if (editor === `skip`) return undefined;
+
+        if (editor === `cursor`) {
+          p.log.message(
+            `\nNote: you will need to go into Cursor Settings -> MCP Settings and manually enable the installed Mastra MCP server.\n`,
+          );
+        }
         return editor;
       },
     },
